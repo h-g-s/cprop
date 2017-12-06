@@ -53,6 +53,10 @@ struct _CProp
     Vec_int *vcolimpl;
     Vec_double *voldlb;
     Vec_double *voldub;
+    
+    char feasible;
+    
+    int nimpl;
 };
 
 void cprop_add_row_name( CProp *cprop, const char rname[] );
@@ -77,7 +81,10 @@ CProp *cprop_create( int cols, const char integer[], const double lb[], const do
     ALLOCATE( cprop, CProp );
 
     cprop->cname = NULL;
-
+    
+    cprop->feasible = 1;
+    cprop->nimpl = 0;
+    
     cprop->cols = cols;
     ALLOCATE_VECTOR( cprop->lb, double, cols );
     ALLOCATE_VECTOR( cprop->ub, double, cols );
@@ -307,6 +314,16 @@ int cprop_process_constraint( CProp *cprop, int irow )
 int cprop_add_constraint( CProp *cprop, int nz, const int idx[], const double coef[], char sense, double rhs, const char rname[] )
 {
     int res1 = 0, res2 = 0;
+    
+    if (!cprop->feasible)
+    {
+        fprintf( stderr, "Cannot add more constraints to infeasible program.\n" );
+        abort();
+    }
+    
+    Vec_int *vcolimpl = cprop->vcolimpl;
+    
+    int implBoundsStart = vec_int_size( vcolimpl );
 
     {
         double mult = toupper(sense) == 'G' || toupper(sense) == 'E' ? -1.0 : 1.0;
@@ -326,8 +343,13 @@ int cprop_add_constraint( CProp *cprop, int nz, const int idx[], const double co
         res2 = cprop_process_constraint( cprop, irow );
     }
 
+    cprop->nimpl = vec_int_size( vcolimpl ) - implBoundsStart;
+    
     if ( res1==-1 || res2==-1 )
+    {
+        cprop->feasible = 0;
         return -1;
+    }
     
     return res1 + res2;
 }
@@ -347,6 +369,14 @@ void cprop_try_add_stk_rows( int nr, const int rows[], Vec_int *stkr, Vec_char *
 
 int cprop_update_bound( CProp *cprop, int j, double l, double u )
 {
+    if (!cprop->feasible)
+    {
+        fprintf( stderr, "Cannot change bounds on infeasible program. Use cprop_undo to undo last changes.\n" );
+        abort();
+    }
+    
+    cprop->nimpl = 0;
+    
     double *lb = cprop->lb;
     double *ub = cprop->ub;
     
@@ -392,6 +422,8 @@ int cprop_update_bound( CProp *cprop, int j, double l, double u )
             int newImpl = cprop_process_constraint( cprop, rcs[i] );
             if ( newImpl == -1 )
             {
+                cprop->feasible = 0;
+                cprop->nimpl = vec_int_size( vcolimpl ) - implBoundsStart - 1;
                 vec_int_push_back( vnimpl, vec_int_size( vcolimpl ) - implBoundsStart );
                 return -1;
             }
@@ -430,12 +462,15 @@ DONE_PROCESSING_ROWS:
         
         if ( newImpl == -1 )
         {
+            cprop->feasible = 0;
+            cprop->nimpl = vec_int_size( vcolimpl ) - implBoundsStart - 1;
             vec_int_push_back( vnimpl, vec_int_size( vcolimpl ) - implBoundsStart );
             return -1;
         }
     }
     
     vec_int_push_back( vnimpl, vec_int_size( vcolimpl ) - implBoundsStart );
+    cprop->nimpl = vec_int_size( vcolimpl ) - implBoundsStart - 1;
     return vec_int_size( vcolimpl ) - implBoundsStart - 1;
 }
 
@@ -529,6 +564,8 @@ void cprop_undo( CProp *cprop )
     }
 
     vec_int_pop_back( vnimpl );
+    
+    cprop->feasible = 1;
 }
 
 void cprop_add_row_name( CProp *cprop, const char rname[] )
@@ -544,6 +581,40 @@ const char *cprop_row_name( CProp *cprop, int i )
 {
     return vec_char_getp( cprop->vrnames, vec_int_get( cprop->vrnamest, i ) );
 }
+
+char cprop_feasible(const CProp* cprop)
+{
+    return cprop->feasible;
+}
+
+int cprop_n_implications( const CProp *cprop )
+{
+    return cprop->nimpl;
+}
+
+int cprop_implied_var( const CProp *cprop, int i )
+{
+    if (cprop->nimpl==0)
+    {
+        fprintf( stderr, "No implications were generated in the last operation.\n" );
+        abort();
+        
+    }
+    return vec_int_get( cprop->vcolimpl, cprop_n_implications( cprop )-i+1 );
+}
+
+double cprop_get_lb( const CProp *cprop, int j )
+{
+    assert( j>=0 && j<cprop->cols );
+    return cprop->lb[j];
+}
+
+double cprop_get_ub( const CProp *cprop, int j )
+{
+    assert( j>=0 && j<cprop->cols );
+    return cprop->ub[j];
+}
+
 
 void cprop_free( CProp **cprop )
 {

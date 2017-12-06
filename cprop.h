@@ -64,9 +64,46 @@ void cprop_undo( CProp *cprop );
 
 /** @brief returns 1 if problem is still feasible, zero otherwise 
  * 
+ * @param cprop constraint propagation object
  **/
 char cprop_feasible( const CProp *cprop );
 
+
+/** @brief returns how many implications the last change produced
+ * 
+ * returns how many implications the last action (add constraint or change bound) produced
+ * 
+ * @param cprop constraint propagation object
+ * 
+ * */
+int cprop_n_implications( const CProp *cprop );
+
+/** @brief returns the i-th variable which bound was implied in the last operation
+ * 
+ * returns the i-th variable which bound was implied in the last operation
+ * 
+ * @param cprop constraint propagation object
+ * @param i the i-th variable which a bound was changed was implied in the last operation
+ * 
+ **/
+int cprop_implied_var( const CProp *cprop, int i );
+
+
+/** @brief returns the current lower bound for column j
+ * 
+ * @param cprop constraint propagation object
+ * @param j index of variable
+ * */
+double cprop_get_lb( const CProp *cprop, int j );
+
+
+/** @brief returns the current upper bound for column j
+ * 
+ * @param cprop constraint propagation object
+ * @param j index of variable
+ * 
+ * */
+double cprop_get_ub( const CProp *cprop, int j );
 
 /** @brief frees memory of cprop object 
  *
