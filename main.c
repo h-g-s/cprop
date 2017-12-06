@@ -45,10 +45,35 @@ int main( int argc, char **argv )
         cprop_add_constraint( cprop, nz, idx, coef, lp_sense(mip,i), lp_rhs(mip,i), lp_row_name(mip, i, rname) );
     }
     
+    
     // simulating branching
     cprop_update_bound( cprop, 0, 1.0, 1.0 );
-    cprop_update_bound( cprop, 1, 1.0, 1.0 );
     
+    if (cprop_n_implications(cprop))
+    {
+        printf("Last Operation Produced %d implications (variables): ", cprop_n_implications(cprop) );
+        for ( int i=0 ; (i<cprop_n_implications(cprop)) ; ++i )
+            printf( "%d ", cprop_implied_var(cprop, i) );
+        printf("\n");
+        
+    }
+    
+    cprop_update_bound( cprop, 1, 1.0, 1.0 );
+    printf("\n\n");
+    printf("\n\n");
+    if (cprop_n_implications(cprop))
+    {
+        printf("Last Operation Produced %d implications (variables): ", cprop_n_implications(cprop) );
+        for ( int i=0 ; (i<cprop_n_implications(cprop)) ; ++i )
+        {
+            char cname[256];
+            printf( "%s ", lp_col_name( mip, cprop_implied_var(cprop,i), cname) );
+            
+        }
+        printf("\n");
+        
+    }
+     
     cprop_free( &cprop );
     
     strv_free( &names );

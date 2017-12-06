@@ -600,7 +600,7 @@ int cprop_implied_var( const CProp *cprop, int i )
         abort();
         
     }
-    return vec_int_get( cprop->vcolimpl, cprop_n_implications( cprop )-i+1 );
+    return vec_int_get( cprop->vcolimpl, vec_int_size(cprop->vcolimpl)-cprop_n_implications(cprop)+i  );
 }
 
 double cprop_get_lb( const CProp *cprop, int j )
