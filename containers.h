@@ -24,6 +24,7 @@ int intcmp_func( const void *p1, const void *p2 );
 /* set of integers */
 typedef struct _ISet ISet;
 ISet *iset_create( int hashSize );
+void iset_ini( ISet *iset, int hashSize );
 void iset_cpy( ISet *target, const ISet *source );
 void iset_add( ISet *set, int value );
 void iset_remove( ISet *set, int value );
@@ -32,6 +33,7 @@ void iset_clear( ISet *set );
 char iset_has( const ISet *set, int value );
 int iset_n_elements( const ISet *set );
 int iset_element( const ISet *set, int idx );
+void iset_clear_mem( ISet *iset );
 void iset_free( ISet **_iset );
 
 /* one dimensional vector */

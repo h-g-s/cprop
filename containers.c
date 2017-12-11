@@ -360,11 +360,16 @@ ISet *iset_create( int hashSize )
 {
     ISet *iset;
     ALLOCATE( iset, ISet );
+    iset_ini( iset, hashSize );
+
+    return iset;
+}
+
+void iset_ini( ISet *iset, int hashSize )
+{
     iset->hashSize = hashSize;
     iset->rows = vec_Vec_IntPairp_create_fill( hashSize, NULL );
     iset->elements = vec_int_create();
-
-    return iset;
 }
 
 void iset_cpy( ISet *target, const ISet *source )
@@ -555,9 +560,9 @@ void strv_clear( StrV *strv )
     strv_resize( strv, 0 );
 }
 
-void iset_free( ISet **_iset )
+
+void iset_clear_mem( ISet *iset )
 {
-    ISet *iset = *_iset;
     int i;
     for ( i=0; (i<vec_Vec_IntPairp_size(iset->rows)) ; i++ )
     {
@@ -567,6 +572,14 @@ void iset_free( ISet **_iset )
     }
     vec_Vec_IntPairp_free( &iset->rows );
     vec_int_free( &iset->elements );
+ 
+}
+
+void iset_free( ISet **_iset )
+{
+    ISet *iset = *_iset;
+    iset_clear_mem( iset );
+    
     free( iset );
     *_iset = NULL;
 }

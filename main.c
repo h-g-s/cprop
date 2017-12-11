@@ -36,6 +36,8 @@ int main( int argc, char **argv )
     }
     
     CProp *cprop = cprop_create( n, integer, lb, ub, (const char**)strv_ptr( names ) );
+
+        cprop_set_verbose( cprop, 1 );
         
     // adding constraints
     for ( int i=0 ; (i<lp_rows(mip)) ; ++i )
@@ -47,6 +49,7 @@ int main( int argc, char **argv )
     
     
     // simulating branching
+    printf("Fixing x1=1\n");
     cprop_update_bound( cprop, 0, 1.0, 1.0 );
     
     if (cprop_n_implications(cprop))
@@ -58,6 +61,7 @@ int main( int argc, char **argv )
         
     }
     
+    printf("Fixing x2=1\n");
     cprop_update_bound( cprop, 1, 1.0, 1.0 );
     printf("\n\n");
     printf("\n\n");
@@ -73,6 +77,9 @@ int main( int argc, char **argv )
         printf("\n");
         
     }
+
+    cprop_save_impl_graph( cprop, "impl.dot");
+
      
     cprop_free( &cprop );
     

@@ -3,6 +3,8 @@
 
 typedef struct _CProp CProp;
 
+#include "containers.h"
+
 
 /** @brief creates a new CProp object
  *
@@ -69,6 +71,14 @@ void cprop_undo( CProp *cprop );
 char cprop_feasible( const CProp *cprop );
 
 
+/** @brief message explaining how infeasibility was detected
+ * 
+ * @param cprop constraint propagation object
+ * 
+ **/
+const char *cprop_inf_msg( const CProp *cprop );
+
+
 /** @brief returns how many implications the last change produced
  * 
  * returns how many implications the last action (add constraint or change bound) produced
@@ -104,6 +114,81 @@ double cprop_get_lb( const CProp *cprop, int j );
  * 
  * */
 double cprop_get_ub( const CProp *cprop, int j );
+
+/// Implication Graph Node Types
+enum IGNType { 
+    EOne,      /*!< variable fixed at one */
+    EZero,     /*!< variable fixed at zero */
+    Infeasible /*!< infeasible node */
+};
+
+/** @brief returns the node type 
+ * 
+ * Returns the node type of a node in the implication graph
+ *
+ * @param cprop constraint propagation object
+ * @param nodeId id of the node in the graph
+ **/
+enum IGNType cprop_impl_graph_node_type( const CProp *cprop, int nodeId );
+
+/** @brief returns the variable which a node refers
+ * 
+ * Returns the variable thar a node in the implication graph refers to
+ *
+ * @param cprop constraint propagation object
+ * @param nodeId id of the node in the graph
+ **/
+int cprop_impl_graph_node_var( const CProp *cprop, int nodeId );
+
+
+/** @brief returns the node id 
+ * 
+ * Returns the node id for a node of type ntype related to column col
+ *
+ * @param cprop constraint propagation object
+ * @param ntype node type
+ * @param col variable (column) index
+ **/
+int cprop_impl_graph_node_id( const CProp *cprop, enum IGNType ntype , int col );
+
+/** @brief number of incident arcs in implication graph node
+ *
+ * Returns the number of incident arcs in the implication graph for a node with id nodeId
+ * col is ignored if a node of type Infeasible is informed 
+ *
+ * @param cprop Constraint Propagation Object
+ * @param nodeId nodeId
+ **/
+int cprop_impl_graph_in_d( const CProp *cprop, int nodeId );
+
+/** @brief returns the origin of the i-th incident arc to nodeId
+ *
+ * Returns the nodeId of the origin of the i-th incident arc in node nodeId
+ *
+ * @param cprop Constraint Propagation Object
+ * @param nodeid nodeId
+ **/
+int cprop_impl_graph_in_neigh( const CProp *cprop, int nodeId, int i );
+
+
+/** @brief saves the implication graph in the DOT file format (graphviz)
+ *
+ * @param cprop constraint propagation object
+ * @param fName file name (.dot extension recommended)
+ **/
+void cprop_save_impl_graph( const CProp *cprop, const char *fName );
+
+
+/** @brief activates detailed printing of implications as they are discovered
+ *
+ * Activates detailed printing of implications and bound changes as they are discovered.
+ * Useful to debug.
+ * 
+ * @param cprop Constraint Propagation Object
+ * @param verbose if messages will be printed on the screen
+ *  
+ **/
+void cprop_set_verbose( CProp *cprop, char verbose );
 
 /** @brief frees memory of cprop object 
  *
