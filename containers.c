@@ -70,14 +70,14 @@ StrV *strv_create( int strSize )
 #ifdef DEBUG
    assert( strSize > 0 );
 #endif
-   StrV *res = xmalloc( sizeof(StrV) );
+   StrV *res = (StrV *) xmalloc( sizeof(StrV) );
 
    res->capacity = DEF_INI_CAP;
    res->size = 0;
    res->strSize = strSize;
-   res->sv = xmalloc( sizeof(char*)*res->capacity );
+   res->sv = (char**) xmalloc( sizeof(char*)*res->capacity );
 
-   res->s = xcalloc( res->capacity*strSize, sizeof(char) );
+   res->s = (char*)xcalloc( res->capacity*strSize, sizeof(char) );
 
    res->sv[0] = res->s;
    int i;
@@ -212,8 +212,8 @@ void strv_increase_capacity_to( StrV *strv, int newCapacity )
    assert( newCapacity > strv->capacity );
 #endif
 
-   char **sv = xmalloc( sizeof(char*)*newCapacity );
-   char *s = xcalloc( newCapacity*strv->strSize, sizeof(char) );
+   char **sv = (char**) xmalloc( sizeof(char*)*newCapacity );
+   char *s = (char*) xcalloc( newCapacity*strv->strSize, sizeof(char) );
    sv[0] = s;
    int i;
    for ( i=1; (i<newCapacity) ; i++ )
@@ -617,8 +617,8 @@ void vec_int_shuffle( Vec_int *vint, Vec_IntPair *vpair )
 
 int cmp_IntPair_b( const void *v1, const void *v2 )
 {
-    const IntPair *ip1 = v1;
-    const IntPair *ip2 = v2;
+    const IntPair *ip1 = (const IntPair *) v1;
+    const IntPair *ip2 = (const IntPair *)v2;
 
     return ip1->b - ip2->b;
 }

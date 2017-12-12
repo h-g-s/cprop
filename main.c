@@ -1,7 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "cprop.h"
+#ifdef __cplusplus
+extern "C" {
 #include "lp.h"
+}
+#else
+#include "lp.h"
+#endif
 #include "macros.h"
 #include "containers.h"
 

@@ -178,6 +178,23 @@ int cprop_impl_graph_in_neigh( const CProp *cprop, int nodeId, int i );
  **/
 void cprop_save_impl_graph( const CProp *cprop, const char *fName );
 
+/** @brief returns the number of cuts found processing the last infeasible solution 
+ *
+ * @param cprop constraint propagation object
+ * @return number of cuts found
+ * */
+int cprop_n_cuts( const CProp *cprop );
+
+int cprop_cut_nz( const CProp *cprop, int idxCut );
+
+const int *cprop_cut_idx( const CProp *cprop, int idxCut );
+
+const double *cprop_cut_coef( const CProp *cprop, int idxCut );
+
+char cprop_cut_sense( const CProp *cprop, int idxCut );
+
+double cprop_cut_rhs( const CProp *cprop, int idxCut );
+
 
 /** @brief activates detailed printing of implications as they are discovered
  *

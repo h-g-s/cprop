@@ -170,7 +170,7 @@ Vec_##type *vec_##type##_create( ) { \
    return vec_##type##_create_cap( DEF_INI_CAP ); \
 } \
 Vec_##type *vec_##type##_create_cap( const int iniCap ) { \
-   Vec_##type *vec = malloc( sizeof(Vec_##type) ); \
+   Vec_##type *vec = (Vec_##type *) malloc( sizeof(Vec_##type) ); \
    if (!vec) { \
       fprintf( stderr, "ERROR: out of memory.\n" ); \
       fprintf( stderr, "\t%s:%d\n", __FILE__, __LINE__ ); \
@@ -178,7 +178,7 @@ Vec_##type *vec_##type##_create_cap( const int iniCap ) { \
    } \
    vec->capacity = iniCap; \
    vec->size = 0; \
-   vec->array = malloc( sizeof(type)*vec->capacity ); \
+   vec->array = (type*) malloc( sizeof(type)*vec->capacity ); \
    if (!vec->array) { \
       fprintf( stderr, "ERROR: out of memory.\n" ); \
       fprintf( stderr, "\t%s:%d\n", __FILE__, __LINE__ ); \
@@ -206,7 +206,7 @@ void vec_##type##_free(Vec_##type **vec) { \
 void vec_##type##_push_back( Vec_##type *vec, const type value ) { \
    if ( vec->size == vec->capacity ) { \
       vec->capacity *= 2; \
-      type *p = realloc( vec->array, sizeof(type)*vec->capacity ); \
+      type *p =(type *) realloc( vec->array, sizeof(type)*vec->capacity ); \
       if (!p) { \
          fprintf( stderr, "ERROR: out of memory.\n" ); \
          fprintf( stderr, "\t%s:%d\n", __FILE__, __LINE__ ); \
@@ -256,7 +256,7 @@ void vec_##type##_resize_nf( Vec_##type *vec, const int size ) { \
     } \
     const int oldSize = vec->size; \
     vec->size = vec->capacity = size; \
-    type *p = realloc( vec->array, sizeof(type)*vec->capacity ); \
+    type *p = (type*) realloc( vec->array, sizeof(type)*vec->capacity ); \
     if (!p) { \
         fprintf( stderr, "ERROR: out of memory resizing vector from %d to %d elements.\n", oldSize, size ); \
         fprintf( stderr, "\t%s:%d\n", __FILE__, __LINE__ ); \
@@ -272,7 +272,7 @@ void vec_##type##_fset( Vec_##type *vec, const int pos, const type value ) { \
    } \
    if ( pos >= vec->capacity ) { \
       vec->capacity = MAX( 2*vec->capacity, pos+1 ); \
-      type *p = realloc( vec->array, sizeof(type)*vec->capacity ); \
+      type *p =(type *) realloc( vec->array, sizeof(type)*vec->capacity ); \
       if (!p) { \
          fprintf( stderr, "ERROR: out of memory.\n" ); \
          fprintf( stderr, "\t%s:%d\n", __FILE__, __LINE__ ); \
@@ -308,7 +308,7 @@ type *vec_##type##_getp( Vec_##type *vec, const int pos ) { \
 void vec_##type##_cpy( Vec_##type *vecTarget, const Vec_##type *vecSource ) { \
    if ( vecTarget->capacity < vecSource->size ) { \
       vecTarget->capacity = vecSource->size; \
-      type *p = realloc( vecTarget->array, sizeof(type)*vecTarget->capacity ); \
+      type *p = (type *)realloc( vecTarget->array, sizeof(type)*vecTarget->capacity ); \
       if (!p) { \
          fprintf( stderr, "ERROR: out of memory.\n" ); \
          fprintf( stderr, "\t%s:%d\n", __FILE__, __LINE__ ); \
@@ -346,7 +346,7 @@ void vec_##type##_resize( Vec_##type *vec, const int size, const type valueNewEl
     } \
     const int oldSize = vec->size; \
     vec->size = vec->capacity = size; \
-    type *p = realloc( vec->array, sizeof(type)*vec->capacity ); \
+    type *p = (type *) realloc( vec->array, sizeof(type)*vec->capacity ); \
     if (!p) { \
         fprintf( stderr, "ERROR: out of memory resizing vector from %d to %d elements.\n", oldSize, size ); \
         fprintf( stderr, "\t%s:%d\n", __FILE__, __LINE__ ); \
@@ -410,7 +410,7 @@ void dict_##type##_set( Dict_##type *dict, const char *key, const type value ) \
             dict->rowCap[hashPos] = DEF_INI_CAP; \
         } else { \
            dict->rowCap[hashPos]*=2; \
-           Dict_Bucket_##type *bigger = realloc( dict->cont[hashPos], sizeof(Dict_Bucket_##type)*dict->rowCap[hashPos] ); \
+           Dict_Bucket_##type *bigger =(Dict_Bucket_##type *) realloc( dict->cont[hashPos], sizeof(Dict_Bucket_##type)*dict->rowCap[hashPos] ); \
            if (!bigger) { \
                fprintf( stderr, "ERROR: no more memory available" ); abort(); exit(EXIT_FAILURE); \
            } \
