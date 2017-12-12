@@ -8,5 +8,6 @@ programs based on the technical report "Nogood Learning for Mixed Integer
 Programming", from Sandhol, T. and Shields, R. (2006)
 [https://www.cs.cmu.edu/~sandholm/nogoodsForMip.techReport06.pdf].
 
-API is documented here: [doc/html/cprop_8h.html](doc/html/cprop_8h.html)
+API is documented
+: [here](dhttp://htmlpreview.github.io/?oc/html/cprop_8h.html)
 
