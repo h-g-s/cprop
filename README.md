@@ -9,5 +9,5 @@ Programming", from Sandhol, T. and Shields, R. (2006)
 [https://www.cs.cmu.edu/~sandholm/nogoodsForMip.techReport06.pdf].
 
 API is documented
-: [here](dhttp://htmlpreview.github.io/?oc/html/cprop_8h.html)
+: [here](http://htmlpreview.github.io/?oc/html/cprop_8h.html)
 
