@@ -1,21 +1,33 @@
 #ifndef CPROP
 #define CPROP
 
+/*! \file cprop.h
+    \brief constraint propagation engine API
+    
+  A simple, solver independent, Constraint Propagation engine for binary programs based on the technical report 
+  "Nogood Learning for Mixed Integer Programming", from Sandhol, T. and Shields, R. (2006) 
+  [https://www.cs.cmu.edu/~sandholm/nogoodsForMip.techReport06.pdf].
+ 
+*/
+
+
+
 typedef struct _CProp CProp;
+
 
 #include "containers.h"
 
 
 /** @brief creates a new CProp object
  *
- *  creates a new Constraint Propagation object
- *  entering information about all variables
+ *  Creates a new Constraint Propagation object
+ *  entering information about all variables.   
  *
  *  @param cols number of variables
  *  @param integer indicates if each variable is integer or not
  *  @param lb lower bound of each variable
  *  @param ub upper bound of each variable
- *  @param name (optional) names of variables, useful for debuging
+ *  @param name names of variables, useful for debuging
  **/
 CProp *cprop_create( int cols, const char integer[], const double lb[], const double ub[], const char **name );
 
@@ -47,8 +59,8 @@ int cprop_add_constraint( CProp *cprop, int nz, const int idx[], const double co
  *
  * @param CProp constraint propagation object
  * @param j variable index
- * @l lower bound
- * @u upper bound
+ * @param l lower bound
+ * @param u upper bound
  **/
 int cprop_update_bound( CProp *cprop, int j, double l, double u );
 
@@ -122,6 +134,7 @@ enum IGNType {
     Infeasible /*!< infeasible node */
 };
 
+
 /** @brief returns the node type 
  * 
  * Returns the node type of a node in the implication graph
@@ -130,6 +143,7 @@ enum IGNType {
  * @param nodeId id of the node in the graph
  **/
 enum IGNType cprop_impl_graph_node_type( const CProp *cprop, int nodeId );
+
 
 /** @brief returns the variable which a node refers
  * 
@@ -151,6 +165,7 @@ int cprop_impl_graph_node_var( const CProp *cprop, int nodeId );
  **/
 int cprop_impl_graph_node_id( const CProp *cprop, enum IGNType ntype , int col );
 
+
 /** @brief number of incident arcs in implication graph node
  *
  * Returns the number of incident arcs in the implication graph for a node with id nodeId
@@ -160,6 +175,7 @@ int cprop_impl_graph_node_id( const CProp *cprop, enum IGNType ntype , int col )
  * @param nodeId nodeId
  **/
 int cprop_impl_graph_in_d( const CProp *cprop, int nodeId );
+
 
 /** @brief returns the origin of the i-th incident arc to nodeId
  *
@@ -178,6 +194,7 @@ int cprop_impl_graph_in_neigh( const CProp *cprop, int nodeId, int i );
  **/
 void cprop_save_impl_graph( const CProp *cprop, const char *fName );
 
+
 /** @brief returns the number of cuts found processing the last infeasible solution 
  *
  * @param cprop constraint propagation object
@@ -185,14 +202,49 @@ void cprop_save_impl_graph( const CProp *cprop, const char *fName );
  * */
 int cprop_n_cuts( const CProp *cprop );
 
+
+/** @brief returns the number of variables that appear on cut idxCut
+ *
+ * @param cprop constraint propagation object
+ * @param idxCut cut index
+ * @return number of non-zeros in cut idxCut
+ **/
 int cprop_cut_nz( const CProp *cprop, int idxCut );
 
+
+/** @brief returns a vector with all columns of cut idxCut
+ *
+ * @param cprop constraint propagation object
+ * @param idxCut cut index
+ * @return vector with column indexes of cut idxCut
+ **/
 const int *cprop_cut_idx( const CProp *cprop, int idxCut );
 
+
+/** @brief returns a vector with all coefficients of cut idxCut
+ *
+ * @param cprop constraint propagation object
+ * @param idxCut cut index
+ * @return vector with coefficients of cut idxCut
+ **/
 const double *cprop_cut_coef( const CProp *cprop, int idxCut );
 
+
+/** @brief returns the sense of cut idxCut 
+ *
+ * @param cprop constraint propagation object
+ * @param idxCut cut index
+ * @return E for equal, L for less or equal and G for greater or equal
+ **/
 char cprop_cut_sense( const CProp *cprop, int idxCut );
 
+
+/** @brief returns the right hand side of cut idxCut
+ *
+ * @param cprop constraint propagation object
+ * @param idxCut cut index
+ * @return right hand size of cut idxCut
+ **/
 double cprop_cut_rhs( const CProp *cprop, int idxCut );
 
 
@@ -207,6 +259,7 @@ double cprop_cut_rhs( const CProp *cprop, int idxCut );
  **/
 void cprop_set_verbose( CProp *cprop, char verbose );
 
+
 /** @brief frees memory of cprop object 
  *
  * Frees memory of cprop object and sets it to NULL
@@ -214,4 +267,6 @@ void cprop_set_verbose( CProp *cprop, char verbose );
  **/
 void cprop_free( CProp **cprop );
 
+
 #endif
+
