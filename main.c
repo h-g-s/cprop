@@ -1,7 +1,15 @@
+/*! \file main.c
+    \brief example of use of the constraint propagation engine in a depth-first-search based
+    branch and bound
+*/
+
+
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
+#include <float.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,6 +24,9 @@ extern "C" {
 #include "cut_pool.h"
 
 int maxDepth = INT_MAX;
+
+double *best = NULL;
+double bestObj = DBL_MAX;
 
 // explores a node of the branch and bound tree
 void exploreNode( LinearProgram *mip, int depth, CProp *cprop );
@@ -95,6 +106,8 @@ END:
     free( idx );
     free( coef );
     lp_free( &mip );
+    if (best)
+        free(best);
 }
 
 int mostFractionalVar( LinearProgram *mip )
@@ -139,10 +152,13 @@ void exploreNode( LinearProgram *mip, int depth, CProp *cprop )
     if (depth>maxDepth)
         return;
 
+    double objValue = DBL_MAX;
+
     int status = lp_optimize_as_continuous( mip );
     switch (status)
     {
     case LP_OPTIMAL:
+        objValue = lp_obj_value(mip);
         goto PROCESS_NODE;
         break;
     case LP_INFEASIBLE:
@@ -153,15 +169,32 @@ void exploreNode( LinearProgram *mip, int depth, CProp *cprop )
     return;
 
 
+
     int jf;
 PROCESS_NODE:
     printIdentDepth( depth );
-    printf("node obj val: %g\n", lp_obj_value(mip) );
+    printf("node obj val: %g", lp_obj_value(mip) );
+    if (objValue+1e-8>=bestObj)
+    {
+        printf(" pruned by bound\n");
+        return;
+    }
+    printf("\n");
+
     jf = mostFractionalVar( mip );
     if (jf==-1)
     {
         printIdentDepth( depth );
-        printf("INTEGER FEASIBLE solution with cost %g found\n", lp_obj_value(mip) );
+        printf("INTEGER FEASIBLE solution with cost %g found\n", objValue );
+        if (lp_obj_value(mip)<bestObj)
+        {
+            if (!best)
+            {
+                ALLOCATE_VECTOR( best, double, lp_cols(mip) );
+            }
+            memcpy( best, lp_x(mip), sizeof(double)*lp_cols(mip));
+            bestObj = lp_obj_value(mip);
+        }
         return;
     }
 
@@ -174,6 +207,12 @@ PROCESS_NODE:
     for ( int b=0 ; b<2 ; ++b )
     {
         printIdentDepth( depth );
+        /* best may have improved since last branch */
+        if (objValue+1e-8>=bestObj)
+        {
+            printf("pruned by bound\n");
+            return;
+        }
         char cname[256];
         const double newB = newBound[b];
         printf("Branching %s%s%g (frac %g)\n", lp_col_name(mip,jf,cname), (!b) ? ">=" : "<=" , newB, fvar );
@@ -217,13 +256,16 @@ PROCESS_NODE:
                 {
                     printIdentDepth(depth);
                     printf("CProp Implications: ");
-                    for (int i=0 ; (i<cprop_n_implications(cprop)) ; ++i )
+                    int i;
+                    for (i=0 ; (i<cprop_n_implications(cprop) && i<5) ; ++i )
                     {
                         int iv = cprop_implied_var( cprop, i );
                         printf("%s=%g ", lp_col_name(mip, iv, cname), cprop_get_lb(cprop,iv) );
                         assert( fabs(cprop_get_lb(cprop,iv)-cprop_get_ub(cprop,iv))<=1e-10 );
                         lp_fix_col( mip, iv, cprop_get_lb(cprop,iv) );
                     }
+                    if (cprop_n_implications(cprop)>5)
+                        printf("... (more %d)", cprop_n_implications(cprop)-5 );
                     printf("\n");
                 }
             }
