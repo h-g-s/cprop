@@ -146,6 +146,8 @@ void exploreNode( LinearProgram *mip, int depth, CProp *cprop )
         goto PROCESS_NODE;
         break;
     case LP_INFEASIBLE:
+        printIdentDepth( depth );
+        printf("INFEASIBLE lp.\n");
         return;
     }
     return;
