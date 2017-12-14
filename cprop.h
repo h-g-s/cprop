@@ -15,7 +15,7 @@
 typedef struct _CProp CProp;
 
 
-#include "containers.h"
+#include "cut_pool.h"
 
 
 /** @brief creates a new CProp object
@@ -195,58 +195,6 @@ int cprop_impl_graph_in_neigh( const CProp *cprop, int nodeId, int i );
 void cprop_save_impl_graph( const CProp *cprop, const char *fName );
 
 
-/** @brief returns the number of cuts found processing the last infeasible solution 
- *
- * @param cprop constraint propagation object
- * @return number of cuts found
- * */
-int cprop_n_cuts( const CProp *cprop );
-
-
-/** @brief returns the number of variables that appear on cut idxCut
- *
- * @param cprop constraint propagation object
- * @param idxCut cut index
- * @return number of non-zeros in cut idxCut
- **/
-int cprop_cut_nz( const CProp *cprop, int idxCut );
-
-
-/** @brief returns a vector with all columns of cut idxCut
- *
- * @param cprop constraint propagation object
- * @param idxCut cut index
- * @return vector with column indexes of cut idxCut
- **/
-const int *cprop_cut_idx( const CProp *cprop, int idxCut );
-
-
-/** @brief returns a vector with all coefficients of cut idxCut
- *
- * @param cprop constraint propagation object
- * @param idxCut cut index
- * @return vector with coefficients of cut idxCut
- **/
-const double *cprop_cut_coef( const CProp *cprop, int idxCut );
-
-
-/** @brief returns the sense of cut idxCut 
- *
- * @param cprop constraint propagation object
- * @param idxCut cut index
- * @return E for equal, L for less or equal and G for greater or equal
- **/
-char cprop_cut_sense( const CProp *cprop, int idxCut );
-
-
-/** @brief returns the right hand side of cut idxCut
- *
- * @param cprop constraint propagation object
- * @param idxCut cut index
- * @return right hand size of cut idxCut
- **/
-double cprop_cut_rhs( const CProp *cprop, int idxCut );
-
 
 /** @brief activates detailed printing of implications as they are discovered
  *
@@ -258,6 +206,13 @@ double cprop_cut_rhs( const CProp *cprop, int idxCut );
  *  
  **/
 void cprop_set_verbose( CProp *cprop, char verbose );
+
+
+/** @brief returns the cut pool with all cuts discovered so far
+ *
+ * @param cprop Constraint Propagation Object
+ */
+const CutPool *cprop_cut_pool( CProp *cprop );
 
 
 /** @brief frees memory of cprop object 

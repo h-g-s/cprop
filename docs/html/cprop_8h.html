@@ -138,27 +138,12 @@ Functions</h2></td></tr>
 <tr class="memitem:a4f0574b06695a8306e4028d2cef95599"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a4f0574b06695a8306e4028d2cef95599">cprop_save_impl_graph</a> (const CProp *cprop, const char *fName)</td></tr>
 <tr class="memdesc:a4f0574b06695a8306e4028d2cef95599"><td class="mdescLeft">&#160;</td><td class="mdescRight">saves the implication graph in the DOT file format (graphviz)  <a href="#a4f0574b06695a8306e4028d2cef95599">More...</a><br /></td></tr>
 <tr class="separator:a4f0574b06695a8306e4028d2cef95599"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a221002e93ccda687760c7a0ee042f0c0"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a221002e93ccda687760c7a0ee042f0c0">cprop_n_cuts</a> (const CProp *cprop)</td></tr>
-<tr class="memdesc:a221002e93ccda687760c7a0ee042f0c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the number of cuts found processing the last infeasible solution  <a href="#a221002e93ccda687760c7a0ee042f0c0">More...</a><br /></td></tr>
-<tr class="separator:a221002e93ccda687760c7a0ee042f0c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a23872114b3ea3742fe3911b4e6436a32"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a23872114b3ea3742fe3911b4e6436a32">cprop_cut_nz</a> (const CProp *cprop, int idxCut)</td></tr>
-<tr class="memdesc:a23872114b3ea3742fe3911b4e6436a32"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the number of variables that appear on cut idxCut  <a href="#a23872114b3ea3742fe3911b4e6436a32">More...</a><br /></td></tr>
-<tr class="separator:a23872114b3ea3742fe3911b4e6436a32"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad0cf799cbac7a38d30b2f526e8ce4012"><td class="memItemLeft" align="right" valign="top">const int *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#ad0cf799cbac7a38d30b2f526e8ce4012">cprop_cut_idx</a> (const CProp *cprop, int idxCut)</td></tr>
-<tr class="memdesc:ad0cf799cbac7a38d30b2f526e8ce4012"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns a vector with all columns of cut idxCut  <a href="#ad0cf799cbac7a38d30b2f526e8ce4012">More...</a><br /></td></tr>
-<tr class="separator:ad0cf799cbac7a38d30b2f526e8ce4012"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac8fd6726c6fd4209a772e34d947dbb4e"><td class="memItemLeft" align="right" valign="top">const double *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#ac8fd6726c6fd4209a772e34d947dbb4e">cprop_cut_coef</a> (const CProp *cprop, int idxCut)</td></tr>
-<tr class="memdesc:ac8fd6726c6fd4209a772e34d947dbb4e"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns a vector with all coefficients of cut idxCut  <a href="#ac8fd6726c6fd4209a772e34d947dbb4e">More...</a><br /></td></tr>
-<tr class="separator:ac8fd6726c6fd4209a772e34d947dbb4e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5717e56a1e1a86795a37254d8653b913"><td class="memItemLeft" align="right" valign="top">char&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a5717e56a1e1a86795a37254d8653b913">cprop_cut_sense</a> (const CProp *cprop, int idxCut)</td></tr>
-<tr class="memdesc:a5717e56a1e1a86795a37254d8653b913"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the sense of cut idxCut  <a href="#a5717e56a1e1a86795a37254d8653b913">More...</a><br /></td></tr>
-<tr class="separator:a5717e56a1e1a86795a37254d8653b913"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a22256a02c4fd6ff3c482bec274b5a269"><td class="memItemLeft" align="right" valign="top">double&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a22256a02c4fd6ff3c482bec274b5a269">cprop_cut_rhs</a> (const CProp *cprop, int idxCut)</td></tr>
-<tr class="memdesc:a22256a02c4fd6ff3c482bec274b5a269"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the right hand side of cut idxCut  <a href="#a22256a02c4fd6ff3c482bec274b5a269">More...</a><br /></td></tr>
-<tr class="separator:a22256a02c4fd6ff3c482bec274b5a269"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a57637989790ccf0a970d1376774838ca"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a57637989790ccf0a970d1376774838ca">cprop_set_verbose</a> (CProp *cprop, char verbose)</td></tr>
 <tr class="memdesc:a57637989790ccf0a970d1376774838ca"><td class="mdescLeft">&#160;</td><td class="mdescRight">activates detailed printing of implications as they are discovered  <a href="#a57637989790ccf0a970d1376774838ca">More...</a><br /></td></tr>
 <tr class="separator:a57637989790ccf0a970d1376774838ca"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2da3ba05fc2593964bcd4b3a927f56df"><td class="memItemLeft" align="right" valign="top">const CutPool *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a2da3ba05fc2593964bcd4b3a927f56df">cprop_cut_pool</a> (CProp *cprop)</td></tr>
+<tr class="memdesc:a2da3ba05fc2593964bcd4b3a927f56df"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the cut pool with all cuts discovered so far  <a href="#a2da3ba05fc2593964bcd4b3a927f56df">More...</a><br /></td></tr>
+<tr class="separator:a2da3ba05fc2593964bcd4b3a927f56df"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afc2abeb70d154ea54b99250837142211"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#afc2abeb70d154ea54b99250837142211">cprop_free</a> (CProp **cprop)</td></tr>
 <tr class="memdesc:afc2abeb70d154ea54b99250837142211"><td class="mdescLeft">&#160;</td><td class="mdescRight">frees memory of cprop object  <a href="#afc2abeb70d154ea54b99250837142211">More...</a><br /></td></tr>
 <tr class="separator:afc2abeb70d154ea54b99250837142211"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -328,193 +313,29 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ac8fd6726c6fd4209a772e34d947dbb4e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac8fd6726c6fd4209a772e34d947dbb4e">&#9670;&nbsp;</a></span>cprop_cut_coef()</h2>
+<a id="a2da3ba05fc2593964bcd4b3a927f56df"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2da3ba05fc2593964bcd4b3a927f56df">&#9670;&nbsp;</a></span>cprop_cut_pool()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">const double* cprop_cut_coef </td>
+          <td class="memname">const CutPool* cprop_cut_pool </td>
           <td>(</td>
-          <td class="paramtype">const CProp *&#160;</td>
-          <td class="paramname"><em>cprop</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
+          <td class="paramtype">CProp *&#160;</td>
+          <td class="paramname"><em>cprop</em></td><td>)</td>
           <td></td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>idxCut</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 
-<p>returns a vector with all coefficients of cut idxCut </p>
+<p>returns the cut pool with all cuts discovered so far </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">cprop</td><td>constraint propagation object </td></tr>
-    <tr><td class="paramname">idxCut</td><td>cut index </td></tr>
+    <tr><td class="paramname">cprop</td><td>Constraint Propagation Object </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>vector with coefficients of cut idxCut </dd></dl>
-
-</div>
-</div>
-<a id="ad0cf799cbac7a38d30b2f526e8ce4012"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad0cf799cbac7a38d30b2f526e8ce4012">&#9670;&nbsp;</a></span>cprop_cut_idx()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">const int* cprop_cut_idx </td>
-          <td>(</td>
-          <td class="paramtype">const CProp *&#160;</td>
-          <td class="paramname"><em>cprop</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>idxCut</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>returns a vector with all columns of cut idxCut </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">cprop</td><td>constraint propagation object </td></tr>
-    <tr><td class="paramname">idxCut</td><td>cut index </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>vector with column indexes of cut idxCut </dd></dl>
-
-</div>
-</div>
-<a id="a23872114b3ea3742fe3911b4e6436a32"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a23872114b3ea3742fe3911b4e6436a32">&#9670;&nbsp;</a></span>cprop_cut_nz()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">int cprop_cut_nz </td>
-          <td>(</td>
-          <td class="paramtype">const CProp *&#160;</td>
-          <td class="paramname"><em>cprop</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>idxCut</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>returns the number of variables that appear on cut idxCut </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">cprop</td><td>constraint propagation object </td></tr>
-    <tr><td class="paramname">idxCut</td><td>cut index </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>number of non-zeros in cut idxCut </dd></dl>
-
-</div>
-</div>
-<a id="a22256a02c4fd6ff3c482bec274b5a269"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a22256a02c4fd6ff3c482bec274b5a269">&#9670;&nbsp;</a></span>cprop_cut_rhs()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">double cprop_cut_rhs </td>
-          <td>(</td>
-          <td class="paramtype">const CProp *&#160;</td>
-          <td class="paramname"><em>cprop</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>idxCut</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>returns the right hand side of cut idxCut </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">cprop</td><td>constraint propagation object </td></tr>
-    <tr><td class="paramname">idxCut</td><td>cut index </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>right hand size of cut idxCut </dd></dl>
-
-</div>
-</div>
-<a id="a5717e56a1e1a86795a37254d8653b913"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a5717e56a1e1a86795a37254d8653b913">&#9670;&nbsp;</a></span>cprop_cut_sense()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">char cprop_cut_sense </td>
-          <td>(</td>
-          <td class="paramtype">const CProp *&#160;</td>
-          <td class="paramname"><em>cprop</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>idxCut</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>returns the sense of cut idxCut </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">cprop</td><td>constraint propagation object </td></tr>
-    <tr><td class="paramname">idxCut</td><td>cut index </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>E for equal, L for less or equal and G for greater or equal </dd></dl>
 
 </div>
 </div>
@@ -903,33 +724,6 @@ Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
-
-</div>
-</div>
-<a id="a221002e93ccda687760c7a0ee042f0c0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a221002e93ccda687760c7a0ee042f0c0">&#9670;&nbsp;</a></span>cprop_n_cuts()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">int cprop_n_cuts </td>
-          <td>(</td>
-          <td class="paramtype">const CProp *&#160;</td>
-          <td class="paramname"><em>cprop</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>returns the number of cuts found processing the last infeasible solution </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">cprop</td><td>constraint propagation object </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>number of cuts found </dd></dl>
 
 </div>
 </div>

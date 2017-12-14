@@ -86,15 +86,10 @@ struct _CProp
 
     Vec_char *msgInf;
 
+    CutPool *cutPool;
+
     char verbose;
 
-    Vec_int *cutNz;
-    Vec_int *cutStart;
-    Vec_int *cutIdx;
-    Vec_char *cutSense;
-    Vec_double *cutCoef;
-    Vec_double *cutRhs;
-    Vec_int *nCuts; // ncuts added since last operation
 };
 
 int cprop_process_constraint_binary_variables( CProp *cprop, int irow );
@@ -104,8 +99,6 @@ int cprop_process_constraint( CProp *cprop, int irow );
 /* reports an infeasible constraint considering the minimum value minLhs on the left-hand-side 
  * also adds nodes to the implicating graph if there are fixed variables */
 void cprop_report_infeasible_constraint( CProp *cprop, int irow, double minLhs );
-
-void cprop_add_cut( CProp *cprop, int nz, const int idx[], const double coef[], char sense, double rhs );
 
 #define HASH_SIZE_IMPLG 128
 
@@ -242,13 +235,7 @@ CProp *cprop_create( int cols, const char integer[], const double lb[], const do
 
     cprop->msgInf = NULL;
 
-    cprop->cutNz = vec_int_create();
-    cprop->cutStart = vec_int_create();
-    cprop->cutIdx = vec_int_create();
-    cprop->cutSense = vec_char_create();
-    cprop->cutCoef = vec_double_create();
-    cprop->cutRhs = vec_double_create();
-    cprop->nCuts = vec_int_create();
+    cprop->cutPool = cut_pool_create( 4096 );
 
     return cprop;
 }
@@ -604,7 +591,6 @@ int cprop_update_bound( CProp *cprop, int j, double l, double u )
 
     int implBoundsStart = vec_int_size( vcolimpl );
     int nArcsIGStart = vec_IntPair_size( cprop->lastArcsIG );
-    int nCutsStart = vec_int_size( cprop->cutNz );
 
     /* storing original bound of this column */
     vec_int_push_back( vcolimpl, j );
@@ -680,7 +666,6 @@ DONE_PROCESSING_ROWS:
     cprop->feasible = 1;
     vec_int_push_back( vnimpl, vec_int_size( vcolimpl ) - implBoundsStart );
     vec_int_push_back( cprop->nNewArcsIG, vec_IntPair_size(cprop->lastArcsIG)-nArcsIGStart );
-    vec_int_push_back( cprop->nCuts, vec_int_size( cprop->cutNz ) - nCutsStart );
     cprop->nimpl = vec_int_size( vcolimpl ) - implBoundsStart - 1;
     return vec_int_size( vcolimpl ) - implBoundsStart - 1;
 
@@ -690,7 +675,6 @@ RETURN_INFEASIBLE:
     vec_int_push_back( vnimpl, vec_int_size( vcolimpl ) - implBoundsStart );
     vec_int_push_back( cprop->nNewArcsIG, vec_IntPair_size(cprop->lastArcsIG)-nArcsIGStart );
     cprop_generate_cuts_inf( cprop );
-    vec_int_push_back( cprop->nCuts, vec_int_size( cprop->cutNz ) - nCutsStart );
 
     /* analyzing infeasibility to generate cuts */
 
@@ -824,21 +808,6 @@ void cprop_undo( CProp *cprop )
     {
         const IntPair arc = vec_IntPair_pop_back( cprop->lastArcsIG );
         iset_remove( cprop->implGIn[arc.a], arc.b );
-    }
-
-    int cuts = vec_int_pop_back( cprop->nCuts );
-    for ( int i=0 ; (i<cuts) ; ++i )
-    {
-        int cutNz = vec_int_pop_back( cprop->cutNz );
-
-        for ( int j=0 ; (j<cutNz) ; ++j )
-            vec_int_pop_back( cprop->cutIdx );
-
-        for ( int j=0 ; (j<cutNz) ; ++j )
-            vec_double_pop_back( cprop->cutCoef );
-
-        vec_double_pop_back( cprop->cutRhs );
-        vec_char_pop_back( cprop->cutSense );
     }
 
     cprop->feasible = 1;
@@ -1112,78 +1081,6 @@ void cprop_save_impl_graph( const CProp *cprop, const char *fName )
 }
 
 
-void cprop_add_cut( CProp *cprop, int nz, const int idx[], const double coef[], char sense, double rhs )
-{
-    vec_int_push_back( cprop->cutStart, 
-            vec_int_size(cprop->cutStart) == 0 ? 0 : 
-            vec_int_last( cprop->cutStart ) + vec_int_last( cprop->cutNz ) );
-    vec_int_push_back( cprop->cutNz, nz );
-
-    for ( int i=0 ; (i<nz) ; ++i  )
-        vec_int_push_back( cprop->cutIdx, idx[i] );
-
-    for ( int i=0 ; (i<nz) ; ++i  )
-        vec_double_push_back( cprop->cutCoef, coef[i] );
-
-    vec_char_push_back( cprop->cutSense, sense );
-    vec_double_push_back( cprop->cutRhs, rhs );
-
-    if (cprop->verbose)
-    {
-        printf( "new cut: " );
-        for ( int i=0 ; (i<nz) ; ++i )
-            printf( "+%g %s ", coef[i], cprop->cname[idx[i]] );
-        switch (toupper(sense))
-        {
-            case 'E':
-                printf("= ");
-                break;
-            case 'L':
-                printf("<= ");
-                break;
-            case 'G':
-                printf(">= ");
-                break;
-        }
-        printf("%g\n", rhs );
-    }
-}
-
-int cprop_cut_nz( const CProp *cprop, int idxCut )
-{
-    return vec_int_get( cprop->cutNz, idxCut );
-}
-
-int cprop_n_cuts( const CProp *cprop )
-{
-    return vec_int_last( cprop->nCuts );
-}
-
-const int *cprop_cut_idx( const CProp *cprop, int idxCut )
-{
-    idxCut = vec_int_size( cprop->cutNz ) - idxCut;
-    return vec_int_getp( cprop->cutIdx, vec_int_get( cprop->cutStart, idxCut ) );
-}
-
-const double *cprop_cut_coef( const CProp *cprop, int idxCut )
-{
-    idxCut = vec_int_size( cprop->cutNz ) - idxCut;
-    return vec_double_getp( cprop->cutCoef, vec_int_get( cprop->cutStart, idxCut ) );
-}
-
-char cprop_cut_sense( const CProp *cprop, int idxCut )
-{
-    idxCut = vec_int_size( cprop->cutNz ) - idxCut;
-    return vec_char_get( cprop->cutSense, idxCut );
-}
-
-double cprop_cut_rhs( const CProp *cprop, int idxCut )
-{
-    idxCut = vec_int_size( cprop->cutNz ) - idxCut;
-    return vec_double_get( cprop->cutRhs, idxCut );
-}
-
-
 void cprop_generate_cuts_inf( CProp *cprop )
 {
     ISet **G = cprop->implGIn;
@@ -1263,7 +1160,8 @@ void cprop_generate_cuts_inf( CProp *cprop )
         {
             double rhs = nz-1-rhsDif;
 
-            cprop_add_cut( cprop, nz, idx, coef, 'L', rhs );
+            cut_pool_add_cut( cprop->cutPool, nz, idx, coef, 'L', rhs );
+
             memcpy( lidx, lnewidx, sizeof(int)*nz );
         }
 
@@ -1329,13 +1227,8 @@ void cprop_free( CProp **cprop )
             iset_free( &((*cprop)->implGIn[j]) );
     free( (*cprop)->implGIn );
     
-    vec_int_free( &(*cprop)->cutNz );
-    vec_int_free( &(*cprop)->cutStart );
-    vec_int_free( &(*cprop)->cutIdx );
-    vec_char_free( &(*cprop)->cutSense );
-    vec_double_free( &(*cprop)->cutCoef );
-    vec_double_free( &(*cprop)->cutRhs );
-    vec_int_free( &(*cprop)->nCuts );
+
+    cut_pool_free( &(*cprop)->cutPool );
 
     if ((*cprop)->msgInf)
         vec_char_free( &((*cprop)->msgInf) );
