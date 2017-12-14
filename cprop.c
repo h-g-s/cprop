@@ -1180,6 +1180,11 @@ char cprop_impl_graph_has_arc( const CProp *cprop, int dest, int source )
     return iset_has( is, source );
 }
 
+const CutPool *cprop_cut_pool( CProp *cprop )
+{
+    return cprop->cutPool;
+}
+
 void cprop_free( CProp **cprop )
 {
     free( (*cprop)->lb );

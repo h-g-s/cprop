@@ -28,6 +28,7 @@ typedef struct _CProp CProp;
  *  @param lb lower bound of each variable
  *  @param ub upper bound of each variable
  *  @param name names of variables, useful for debuging
+ *  @return constraint propagation object
  **/
 CProp *cprop_create( int cols, const char integer[], const double lb[], const double ub[], const char **name );
 
@@ -68,7 +69,7 @@ int cprop_update_bound( CProp *cprop, int j, double l, double u );
 /** @brief undo the last bound changed and all its implications
  *
  * Undo the last bound changed and all its implications. Can be
- * called multiple times (unlimited undo) 
+ * called multiple times (unlimited undo) to go back to the initial state.
  *
  * @param cprop constraint propagation object
  *
@@ -93,9 +94,9 @@ const char *cprop_inf_msg( const CProp *cprop );
 
 /** @brief returns how many implications the last change produced
  * 
- * returns how many implications the last action (add constraint or change bound) produced
  * 
  * @param cprop constraint propagation object
+ * @return returns how many implications the last action (add constraint or change bound) produced
  * 
  * */
 int cprop_n_implications( const CProp *cprop );
