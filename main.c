@@ -165,13 +165,16 @@ PROCESS_NODE:
 
     const double *x = lp_x( mip );
 
+    double newBound[] = { ceil(x[jf]), floor(x[jf]) };
+    double fvar = x[jf];
+
     /* branching */
     for ( int b=0 ; b<2 ; ++b )
     {
         printIdentDepth( depth );
         char cname[256];
-        const double newB = (!b) ? ceil(x[jf]) : floor(x[jf]);
-        printf("Branching %s%s%g\n", lp_col_name(mip,jf,cname), (!b) ? ">=" : "<=" , newB );
+        const double newB = newBound[b];
+        printf("Branching %s%s%g (frac %g)\n", lp_col_name(mip,jf,cname), (!b) ? ">=" : "<=" , newB, fvar );
 
         if (lp_is_binary(mip, jf))  // validating in cprop first
         {
