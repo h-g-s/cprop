@@ -369,7 +369,7 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
                         {
                             cprop_add_arc_impl_g( cprop, 
                                     lb[idx[k]]>=0.98 ? EOne : EZero, idx[k], 
-                                    EZero, idx[k] );
+                                    EZero, idx[j] );
                         }
                     }
 
@@ -865,6 +865,7 @@ void cprop_add_arc_impl_g( CProp *cprop, enum IGNType ntSource, int colSource, e
 {
     int sIndex = cprop_impl_graph_node_id( cprop, ntSource, colSource );
     int dIndex =  cprop_impl_graph_node_id( cprop, ntDest, colDest );
+    assert( sIndex != dIndex );
 
     if (cprop->implGIn[dIndex]==NULL)
         cprop->implGIn[dIndex] = iset_create( HASH_SIZE_IMPLG );
@@ -1083,6 +1084,7 @@ void cprop_save_impl_graph( const CProp *cprop, const char *fName )
 
 void cprop_generate_cuts_inf( CProp *cprop )
 {
+    cprop_save_impl_graph( cprop, "impl.dot");
     ISet **G = cprop->implGIn;
 
     int *idx = cprop->idx;

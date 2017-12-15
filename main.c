@@ -9,14 +9,17 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
+#include <math.h>
 #include <float.h>
 
+#include "lp.h"
+/*
 #ifdef __cplusplus
 extern "C" {
 #include "lp.h"
 }
 #else
-#endif
+#endif*/
 
 #include "macros.h"
 #include "containers.h"
@@ -47,6 +50,7 @@ int main( int argc, char **argv )
     }
     
     lp_read( mip, argv[1] );
+    lp_set_print_messages( mip, 0 );
 
     maxDepth = atoi( argv[2] );
 
