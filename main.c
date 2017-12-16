@@ -245,12 +245,11 @@ PROCESS_NODE:
                         int nz = cpc_nz( cp, icut );
                         const int *idx = cpc_idx( cp, icut );
                         const double *coef = cpc_coef( cp, icut );
-                        char sense = cpc_sense( cp, icut );
                         double rhs = cpc_rhs( cp, icut );
                         printIdentDepth( depth );
                         for ( int j=0 ; j<nz ; ++j )
                             printf("%+g %s ", coef[j], lp_col_name(mip, idx[j], cname) );
-                        printf("%s %g\n", sense=='E' ? "=" : sense == 'L' ? "<=" : ">=", rhs );
+                        printf("<= %g\n", rhs );
                     }
                 }
                 

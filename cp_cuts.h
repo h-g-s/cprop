@@ -24,7 +24,7 @@ CPCuts *cpc_create( int hashSize );
  */
 int cpc_n_cuts( const CPCuts *cp );
 
-/** @brief Adds a new cut to the cut pool. Ignores it if another cut equal to this one was already inserted.
+/** @brief Adds a new cut to the cut pool in the format cx <= b. Ignores it if another cut equal to this one was already inserted.
  *
  * Adds a new cut to the cut pool. Ignores it if another cut equal to this one was already inserted.
  *
@@ -32,11 +32,10 @@ int cpc_n_cuts( const CPCuts *cp );
  * @param nz non-zero variables in cut
  * @param idx indexes of non-zero variables
  * @param coef coefficients of non-zero variables
- * @param sense 'E' for equal, 'L' for less of equal and 'G' for greater or equal
  * @param rhs right hand side constant
  * @return returns 1 if the cut was added, 0 otherwise
  */
-char cpc_add_cut( CPCuts *cp, int nz, const int idx[], const double coef[], char sense, double rhs );
+char cpc_add_cut( CPCuts *cp, int nz, const int idx[], const double coef[], double rhs );
 
 /** @brief Returns the number of non-zeros in cut idxCut
  *
@@ -56,13 +55,6 @@ int *cpc_idx( const CPCuts *cp, int idxCut );
  * @param cp cut pool
  * @param idxCut cut index*/
 double *cpc_coef( const CPCuts *cp, int idxCut );
-
-/** @brief returns the sense of the cut idxCut
- *
- * @param cp cut pool
- * @param idxCut cut index
- * @return 'E' for equal, 'L' for less or equal or 'G' for greater or equal*/
-char cpc_sense( const CPCuts *cp, int idxCut );
 
 /** @brief returns the right hand side for cut idxCut
  *

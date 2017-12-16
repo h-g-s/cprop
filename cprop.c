@@ -1112,10 +1112,10 @@ void cprop_generate_cuts_inf( CProp *cprop )
 
     iset_clear( cprop->inodes );
     
-    int ll = 0;
+    //int ll = 0;
     while ( lnz )
     {
-        printf("== layer %d\n", ll++ );
+        //printf("== layer %d\n", ll++ );
 
         int nz = 0;
         /* all incident arcs  */
@@ -1126,7 +1126,7 @@ void cprop_generate_cuts_inf( CProp *cprop )
             if (G[lidx[j]]==NULL)
                 continue;
 
-            printf("  -- node %d\n", lidx[j] );
+            //printf("  -- node %d\n", lidx[j] );
             for ( int k=0 ; (k<iset_n_elements( G[lidx[j]])) ; ++k )
             {
 
@@ -1135,7 +1135,7 @@ void cprop_generate_cuts_inf( CProp *cprop )
                 if (iset_has( cprop->inodes, el ))
                     continue;
 
-                printf("      -- el %d\n", el );
+                //printf("      -- el %d\n", el );
 
                 /* checking if this value is not implied by other node already inside the cut */
                 char alreadyImpl = 0;
@@ -1181,7 +1181,7 @@ void cprop_generate_cuts_inf( CProp *cprop )
         {
             double rhs = nz-1-rhsDif;
 
-            cpc_add_cut( cprop->CPCuts, nz, idx, coef, 'L', rhs );
+            cpc_add_cut( cprop->CPCuts, nz, idx, coef, rhs );
 
             memcpy( lidx, lnewidx, sizeof(int)*nz );
         }

@@ -14,7 +14,6 @@ struct _CPCuts
     Vec_int *cutStart;
     Vec_int *cutIdx;
     Vec_double *cutCoef;
-    Vec_char *cutSense;
     Vec_double *cutRHS;
 
     // cuts per hash bucket
@@ -28,7 +27,7 @@ static char dbl_diff( const double v1, const double v2 );
 static const unsigned int hashval[] = { 11, 269, 3, 7, 31, 37, 131, 13, 17, 647, 653, 89, 97, 101, 39, 149, 151, 157, 821, 257, 263, 389, 397, \
                                         457, 461, 463, 331, 337, 347, 1453, 1459, 1471, 1481, 1483, 1487, 1489, 1493, 1499, 1511, 9, 53, 59  };
 
-static unsigned int cutHash( int nz, const int idx[], char sense );
+static unsigned int cutHash( int nz, const int idx[] );
 
 CPCuts *cpc_create( int hashSize )
 {
@@ -42,7 +41,6 @@ CPCuts *cpc_create( int hashSize )
     res->cutStart = vec_int_create();
     res->cutIdx = vec_int_create();
     res->cutCoef = vec_double_create();
-    res->cutSense = vec_char_create();
     res->cutRHS = vec_double_create();
 
     return res;
@@ -53,9 +51,9 @@ int cpc_n_cuts( const CPCuts *cp )
     return vec_int_size( cp->cutStart );
 }
 
-char cpc_add_cut( CPCuts *cp, int nz, const int idx[], const double coef[], char sense, double rhs )
+char cpc_add_cut( CPCuts *cp, int nz, const int idx[], const double coef[], double rhs )
 {
-    int cutBucket = cutHash( nz, idx, sense ) % cp->hashSize;
+    int cutBucket = cutHash( nz, idx ) % cp->hashSize;
 
     if (cp->cutsBucket[cutBucket] == NULL)
         cp->cutsBucket[cutBucket] = vec_int_create();
@@ -72,10 +70,6 @@ char cpc_add_cut( CPCuts *cp, int nz, const int idx[], const double coef[], char
 
             {
                 if (onz != nz)
-                    goto CHECK_NEXT_CUT_BUCKET;
-
-                char osense = vec_char_get( cp->cutSense, idxCut );
-                if (osense != sense)
                     goto CHECK_NEXT_CUT_BUCKET;
 
                 double orhs = vec_double_get( cp->cutRHS, idxCut );
@@ -107,7 +101,6 @@ CHECK_NEXT_CUT_BUCKET:
 
     vec_int_push_back( cp->cutStart, vec_int_size(cp->cutNz)==0 ? 0 : vec_int_last(cp->cutNz)+vec_int_last(cp->cutStart) );
     vec_int_push_back( cp->cutNz, nz );
-    vec_char_push_back( cp->cutSense, sense );
     vec_double_push_back( cp->cutRHS, rhs );
 
     for ( int i=0 ; (i<nz) ; ++i )
@@ -119,7 +112,7 @@ CHECK_NEXT_CUT_BUCKET:
     return 1;
 }
 
-static unsigned int cutHash( int nz, const int idx[], char sense )
+static unsigned int cutHash( int nz, const int idx[] )
 {
     unsigned int res = 0;
     int nVals = sizeof(hashval) / sizeof(unsigned int);
@@ -129,8 +122,6 @@ static unsigned int cutHash( int nz, const int idx[], char sense )
         res += idx[i]*hashval[i%nVals];
 
     res += hashval[(++i)%nVals]*nz;
-
-    res += hashval[(++i)%nVals]*sense;
 
     return res;
 }
@@ -155,11 +146,6 @@ double *cpc_coef( const CPCuts *cp, int idxCut )
     return vec_double_getp( cp->cutCoef, vec_int_get( cp->cutStart, idxCut ) );
 }
 
-char cpc_sense( const CPCuts *cp, int idxCut )
-{
-    return vec_char_get( cp->cutSense, idxCut );
-}
-
 double cpc_rhs( const CPCuts *cp, int idxCut )
 {
     return vec_double_get( cp->cutRHS, idxCut );
@@ -171,7 +157,6 @@ void cpc_clear( CPCuts *cpcuts )
     vec_int_clear(cpcuts->cutStart);
     vec_int_clear(cpcuts->cutIdx);
     vec_double_clear(cpcuts->cutCoef);
-    vec_char_clear(cpcuts->cutSense);
     vec_double_clear(cpcuts->cutRHS);
 
     for ( int i=0 ; (i<cpcuts->hashSize) ; ++i )
@@ -195,7 +180,6 @@ void cpc_free( CPCuts **pcp )
     vec_int_free( &cp->cutIdx );
     vec_double_free( &cp->cutCoef );
     vec_double_free( &cp->cutRHS );
-    vec_char_free( &cp->cutSense );
 
     free( cp );
 
