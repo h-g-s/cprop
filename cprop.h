@@ -33,6 +33,15 @@ typedef struct _CProp CProp;
 CProp *cprop_create( int cols, const char integer[], const double lb[], const double ub[], const char **name );
 
 
+/** @brief creates a copy of a constraint propagation object 
+ *
+ *  @param CProp constraint propagation object
+ *  @return constraint propagation object
+ *
+ **/
+CProp *cprop_clone( const CProp *_cprop );
+
+
 /** @brief adds a new constraint
  *
  *  Adds a new constraint and performs constraint propagation (CP). Returns 0 
@@ -214,6 +223,12 @@ void cprop_set_verbose( CProp *cprop, char verbose );
  * @param cprop Constraint Propagation Object
  */
 const CutPool *cprop_cut_pool( CProp *cprop );
+
+
+/** @brief compares two constraint propagation objects
+ *
+ **/
+char cprop_equals( const CProp *cprop1, const CProp *cprop2 );
 
 
 /** @brief frees memory of cprop object 

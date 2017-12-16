@@ -33,6 +33,7 @@ void iset_clear( ISet *set );
 char iset_has( const ISet *set, int value );
 int iset_n_elements( const ISet *set );
 int iset_element( const ISet *set, int idx );
+char iset_equals( const ISet *set1, const ISet *set2 );
 void iset_clear_mem( ISet *iset );
 void iset_free( ISet **_iset );
 
@@ -145,10 +146,12 @@ int v2d_size( const V2D_int *v2d );
 void v2d_resize( V2D_int *v2d, const int rows );
 void v2d_int_row_push_back( V2D_int *v2d, int row, int value );
 void v2d_int_row_insert_unique( V2D_int *v2d, int row, int value );
-void v2d_int_row_clear( V2D_int *v2d, int row, int value );
-int v2d_int_row_size( V2D_int *v2d, int row );
-int v2d_int_row_get( V2D_int *v2d, int row, int col );
+void v2d_int_row_clear( V2D_int *v2d, int row );
+int v2d_int_row_size( const V2D_int *v2d, int row );
+int v2d_int_row_get( const V2D_int *v2d, int row, int col );
 int *v2d_int_row_ptr( V2D_int *v2d, int row );
+char v2d_int_equals( const V2D_int *v2d1, const V2D_int *v2d2 );
+void v2d_cpy(  V2D_int *target, const V2D_int *source );
 void v2d_free( V2D_int **v2di );
 
 DECLARE_DICT_TYPE( Vec_intp )

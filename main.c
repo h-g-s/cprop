@@ -207,6 +207,7 @@ PROCESS_NODE:
     double newBound[] = { ceil(x[jf]), floor(x[jf]) };
     double fvar = x[jf];
 
+    CProp *back = NULL;
     /* branching */
     for ( int b=0 ; b<2 ; ++b )
     {
@@ -224,6 +225,9 @@ PROCESS_NODE:
         if (lp_is_binary(mip, jf))  // validating in cprop first
         {
             int nCutsBefore = cut_pool_n_cuts( cprop_cut_pool(cprop) );
+#ifdef DEBUG
+            back = cprop_clone( cprop );
+#endif
             cprop_update_bound( cprop, jf,  newB, newB );
             if (!cprop_feasible( cprop ))
             {
@@ -251,6 +255,11 @@ PROCESS_NODE:
                 }
                 
                 cprop_undo( cprop );
+#ifdef DEBUG
+                if (!cprop_equals(cprop,back))
+                    abort();
+                cprop_free( &back );
+#endif
                 continue;
             }
             else
@@ -295,6 +304,15 @@ PROCESS_NODE:
             lp_set_col_bounds( mip, iv, 0.0, 1.0 );
          }
         cprop_undo( cprop );
+#ifdef DEBUG
+        if (lp_is_binary(mip, jf))
+        {
+            assert(back!=NULL);
+            if (!cprop_equals(cprop,back))
+                abort();
+            cprop_free( &back );
+        }
+#endif
 
         if (!b)
             lp_set_col_bounds( mip, jf, oldBound, lp_col_ub(mip,jf) );

@@ -286,13 +286,13 @@ void v2d_resize( V2D_int *v2d, const int rows )
             vec_Vec_intp_set(v2d,i,vec_int_create());
 }
 
-int v2d_int_row_size( V2D_int *v2d, int row )
+int v2d_int_row_size( const V2D_int *v2d, int row )
 {
     Vec_int *vi = vec_Vec_intp_get( v2d, row );
     return vec_int_size( vi );
 }
 
-int v2d_int_row_get( V2D_int *v2d, int row, int col )
+int v2d_int_row_get( const V2D_int *v2d, int row, int col )
 {
     Vec_int *vi = vec_Vec_intp_get( v2d, row );
     return vec_int_get( vi, col );
@@ -304,7 +304,7 @@ int *v2d_int_row_ptr( V2D_int *v2d, int row )
     return vec_int_ptr( vi );
 }
 
-void v2d_int_row_clear( V2D_int *v2d, int row, int value )
+void v2d_int_row_clear( V2D_int *v2d, int row )
 {
     Vec_int *vi = vec_Vec_intp_get( v2d, row );
     vec_int_clear( vi );
@@ -621,6 +621,53 @@ int cmp_IntPair_b( const void *v1, const void *v2 )
     const IntPair *ip2 = (const IntPair *)v2;
 
     return ip1->b - ip2->b;
+}
+
+void v2d_cpy(  V2D_int *target, const V2D_int *source )
+{
+    assert( target && source );
+
+    if (v2d_size(target) != v2d_size(source))
+        v2d_resize(target, v2d_size(source));
+
+    for ( int i=0 ; (i<v2d_size(source)) ; ++i )
+    {
+        v2d_int_row_clear( target, i );
+        int n = v2d_int_row_size( source, i );
+        for ( int j=0 ; (j<n) ; ++j )
+            v2d_int_row_push_back( target, i, v2d_int_row_get(source, i, j ) );
+
+    }
+}
+
+char v2d_int_equals( const V2D_int *v2d1, const V2D_int *v2d2 )
+{
+    if (v2d_size(v2d1)!=v2d_size(v2d2))
+        return 0;
+    
+    for ( int i=0 ; (i<v2d_size(v2d1)) ; ++i )
+    {
+        if (v2d_int_row_size(v2d1,i)!=v2d_int_row_size(v2d2,i))
+            return 0;
+        for ( int j=0 ; (j<v2d_int_row_size(v2d1,i)) ; ++j )
+            if (v2d_int_row_get(v2d1,i,j)!=v2d_int_row_get(v2d2,i,j))
+                return 0;
+    }
+    
+    return 1;
+}
+
+char iset_equals( const ISet *set1, const ISet *set2 )
+{
+    if (iset_n_elements(set1)!=iset_n_elements(set2))
+        return 0;
+
+    int n = iset_n_elements(set1);
+    for ( int i=0 ; (i<n) ; ++i )
+        if (!iset_has(set2, iset_element(set1, i)))
+            return 0;
+
+    return 1;
 }
 
 void vec_IntPair_sort( Vec_IntPair *vip )

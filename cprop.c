@@ -50,6 +50,10 @@ struct _CProp
     Vec_char *ivr;
     /* stack of rows to be processed after an update */
     Vec_int *stkRows;
+    ISet *inodes;  // stores nodes already processed in some layer
+                   // of the conflict graph
+
+
 
     /* all constraints stored in the format
      * ax <= b */
@@ -203,6 +207,9 @@ CProp *cprop_create( int cols, const char integer[], const double lb[], const do
     FILL( cprop->nv, 0, cols, 0.0 );
     cprop->ivr = vec_char_create();
     cprop->stkRows = vec_int_create();
+    cprop->inodes = iset_create( 4096 );
+
+
     cprop->vrnames = vec_char_create();
     cprop->vrnamest = vec_int_create();
 
@@ -1103,9 +1110,14 @@ void cprop_generate_cuts_inf( CProp *cprop )
     /* starts from the infeasibility */
     int lnz = 1;
     lidx[0] = cprop_impl_graph_node_id( cprop, Infeasible, 0 );
+
+    iset_clear( cprop->inodes );
     
+    int ll = 0;
     while ( lnz )
     {
+        printf("== layer %d\n", ll++ );
+
         int nz = 0;
         /* all incident arcs  */
         int rhsDif = 0;
@@ -1114,10 +1126,17 @@ void cprop_generate_cuts_inf( CProp *cprop )
         {
             if (G[lidx[j]]==NULL)
                 continue;
+
+            printf("  -- node %d\n", lidx[j] );
             for ( int k=0 ; (k<iset_n_elements( G[lidx[j]])) ; ++k )
             {
 
                 int el = iset_element( G[lidx[j]], k );
+
+                if (iset_has( cprop->inodes, el ))
+                    continue;
+
+                printf("      -- el %d\n", el );
 
                 /* checking if this value is not implied by other node already inside the cut */
                 char alreadyImpl = 0;
@@ -1137,6 +1156,7 @@ void cprop_generate_cuts_inf( CProp *cprop )
 
                     idx[nz] = col;
                     lnewidx[nz] = el;
+                    iset_add( cprop->inodes, el );
 
                     switch (type)
                     {
@@ -1187,6 +1207,117 @@ const CutPool *cprop_cut_pool( CProp *cprop )
     return cprop->cutPool;
 }
 
+CProp *cprop_clone( const CProp *_cprop )
+{
+    CProp *cprop = cprop_create( _cprop->cols, _cprop->integer, _cprop->olb, _cprop->oub, (const char **)_cprop->cname );
+
+    memcpy( cprop->lb, _cprop->lb, sizeof(double)*cprop->cols );
+    memcpy( cprop->ub, _cprop->ub, sizeof(double)*cprop->cols );
+
+    vec_int_cpy( cprop->vrstart, _cprop->vrstart );
+    vec_int_cpy( cprop->vrnz, _cprop->vrnz );
+    vec_int_cpy( cprop->vridx, _cprop->vridx );
+    vec_double_cpy( cprop->vrcoef, _cprop->vrcoef );
+    vec_double_cpy( cprop->vrrhs, _cprop->vrrhs );
+    vec_char_cpy( cprop->vrtype, _cprop->vrtype );
+    v2d_cpy( cprop->rowsCol, _cprop->rowsCol );
+
+    vec_int_cpy( cprop->vrnamest, _cprop->vrnamest );
+    vec_char_cpy( cprop->vrnames, _cprop->vrnames );
+
+    vec_int_cpy( cprop->vnimpl, _cprop->vnimpl );
+    vec_int_cpy( cprop->vcolimpl, _cprop->vcolimpl );
+    vec_double_cpy( cprop->voldlb, _cprop->voldlb );
+    vec_double_cpy( cprop->voldub, _cprop->voldub );
+    vec_IntPair_cpy( cprop->lastArcsIG, _cprop->lastArcsIG );
+    vec_int_cpy( cprop->nNewArcsIG, _cprop->nNewArcsIG );
+
+    cprop->feasible = _cprop->feasible;
+
+    /* copying implication graph */
+    for ( int i=0 ; (i<2*cprop->cols+1) ; ++i  )
+    {
+        if ( _cprop->implGIn[i] && iset_n_elements(_cprop->implGIn[i]) )
+        {
+            cprop->implGIn[i] = iset_create( HASH_SIZE_IMPLG );
+            iset_cpy( cprop->implGIn[i], _cprop->implGIn[i] );
+        }
+    }
+
+    cprop->nimpl = _cprop->nimpl;
+
+    cprop->verbose = _cprop->verbose;
+
+    return cprop;
+}
+
+
+char cprop_equals( const CProp *cprop1, const CProp *cprop2 )
+{
+    if (cprop1->cols != cprop2->cols)
+        return 0;
+
+    for ( int j=0 ; (j<cprop1->cols) ; ++j )
+    {
+        if (fabs(cprop1->lb[j]-cprop2->lb[j])>1e-10)
+            return 0;
+        if (fabs(cprop1->ub[j]-cprop2->ub[j])>1e-10)
+            return 0;
+        if (fabs(cprop1->olb[j]-cprop2->olb[j])>1e-10)
+            return 0;
+        if (fabs(cprop1->oub[j]-cprop2->oub[j])>1e-10)
+            return 0;
+        if (cprop1->binary[j]!=cprop2->binary[j])
+            return 0;
+    }
+
+    if (!vec_int_equals(cprop1->vrstart, cprop2->vrstart))
+        return 0;
+    if (!vec_int_equals(cprop1->vrnz, cprop2->vrnz))
+        return 0;
+    if (!vec_int_equals(cprop1->vridx, cprop2->vridx))
+        return 0;
+    if (!vec_char_equals(cprop1->vrtype, cprop2->vrtype))
+        return 0;
+    if (!v2d_int_equals(cprop1->rowsCol, cprop2->rowsCol))
+        return 0;
+    if (!vec_int_equals(cprop1->vnimpl, cprop2->vnimpl))
+        return 0;
+    if (!vec_int_equals(cprop1->vcolimpl, cprop2->vcolimpl))
+        return 0;
+    if (!vec_int_equals(cprop1->nNewArcsIG, cprop2->nNewArcsIG))
+        return 0;
+
+    if (!vec_IntPair_equals(cprop1->lastArcsIG, cprop2->lastArcsIG))
+        return 0;
+
+    if (!vec_double_equals(cprop1->voldlb, cprop2->voldlb))
+        return 0;
+    if (!vec_double_equals(cprop1->voldub, cprop2->voldub))
+        return 0;
+    if (!vec_double_equals(cprop1->vrcoef, cprop2->vrcoef))
+        return 0;
+    if (!vec_double_equals(cprop1->vrrhs, cprop2->vrrhs))
+        return 0;
+
+    /* comparing implication graph */
+    for ( int i=0 ; (i<cprop1->cols*2+1) ; ++i )
+    {
+        int n1 = cprop1->implGIn[i] == NULL ? 0 : iset_n_elements(cprop1->implGIn[i]);
+        int n2 = cprop2->implGIn[i] == NULL ? 0 : iset_n_elements(cprop2->implGIn[i]);
+        if (n1!=n2)
+            return 0;
+        if (n1==0)
+            continue;
+
+        if (!iset_equals(cprop1->implGIn[i], cprop2->implGIn[i]))
+            return 0;
+    }
+
+    return 1;
+}
+
+
 void cprop_free( CProp **cprop )
 {
     free( (*cprop)->lb );
@@ -1209,6 +1340,7 @@ void cprop_free( CProp **cprop )
     free( (*cprop)->nv );
     vec_char_free( &(*cprop)->ivr );
     vec_int_free( &(*cprop)->stkRows );
+    iset_free( &(*cprop)->inodes );
 
     vec_int_free( &(*cprop)->vrstart );
     vec_int_free( &(*cprop)->vrnz );
