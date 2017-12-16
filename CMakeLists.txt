@@ -1,4 +1,4 @@
-add_executable(cprop main.c cprop.c containers.c memory.c strutils.c lp.cpp cut_pool.c)
+add_executable(cprop main.c cprop.c containers.c memory.c strutils.c lp.cpp cp_cuts.c)
 
 
 SET( CPLEXDIR "/opt/ibm/ILOG/CPLEX_Studio1271/cplex/")

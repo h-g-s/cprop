@@ -24,7 +24,7 @@ extern "C" {
 #include "macros.h"
 #include "containers.h"
 #include "cprop.h"
-#include "cut_pool.h"
+#include "cp_cuts.h"
 
 int maxDepth = INT_MAX;
 
@@ -224,7 +224,7 @@ PROCESS_NODE:
 
         if (lp_is_binary(mip, jf))  // validating in cprop first
         {
-            int nCutsBefore = cut_pool_n_cuts( cprop_cut_pool(cprop) );
+            int nCutsBefore = cpc_n_cuts( cprop_cut_pool(cprop) );
 #ifdef DEBUG
             back = cprop_clone( cprop );
 #endif
@@ -234,19 +234,19 @@ PROCESS_NODE:
                 printIdentDepth( depth );
                 printf("INFEASIBILITY DETECTED with cprop while branching\n");
                 
-                int nNewCuts = cut_pool_n_cuts( cprop_cut_pool(cprop) ) - nCutsBefore;
+                int nNewCuts = cpc_n_cuts( cprop_cut_pool(cprop) ) - nCutsBefore;
                 if ( nNewCuts > 0 )
                 {
                     printIdentDepth( depth );
                     printf("%d new cuts:\n", nNewCuts );
-                    const CutPool *cp = cprop_cut_pool(cprop);
-                    for ( int icut=nCutsBefore ; icut<cut_pool_n_cuts( cp ) ; ++icut )
+                    const CPCuts *cp = cprop_cut_pool(cprop);
+                    for ( int icut=nCutsBefore ; icut<cpc_n_cuts( cp ) ; ++icut )
                     {
-                        int nz = cut_pool_nz( cp, icut );
-                        const int *idx = cut_pool_idx( cp, icut );
-                        const double *coef = cut_pool_coef( cp, icut );
-                        char sense = cut_pool_sense( cp, icut );
-                        double rhs = cut_pool_rhs( cp, icut );
+                        int nz = cpc_nz( cp, icut );
+                        const int *idx = cpc_idx( cp, icut );
+                        const double *coef = cpc_coef( cp, icut );
+                        char sense = cpc_sense( cp, icut );
+                        double rhs = cpc_rhs( cp, icut );
                         printIdentDepth( depth );
                         for ( int j=0 ; j<nz ; ++j )
                             printf("%+g %s ", coef[j], lp_col_name(mip, idx[j], cname) );

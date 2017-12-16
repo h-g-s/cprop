@@ -15,7 +15,7 @@
 typedef struct _CProp CProp;
 
 
-#include "cut_pool.h"
+#include "cp_cuts.h"
 
 
 /** @brief creates a new CProp object
@@ -222,7 +222,7 @@ void cprop_set_verbose( CProp *cprop, char verbose );
  *
  * @param cprop Constraint Propagation Object
  */
-const CutPool *cprop_cut_pool( CProp *cprop );
+const CPCuts *cprop_cut_pool( CProp *cprop );
 
 
 /** @brief compares two constraint propagation objects
@@ -231,12 +231,20 @@ const CutPool *cprop_cut_pool( CProp *cprop );
 char cprop_equals( const CProp *cprop1, const CProp *cprop2 );
 
 
+/** @brief goes back to the original state
+ *
+ **/
+void cprop_clear( CProp *cprop );
+
+
 /** @brief frees memory of cprop object 
  *
  * Frees memory of cprop object and sets it to NULL
  *
  **/
 void cprop_free( CProp **cprop );
+
+
 
 
 #endif

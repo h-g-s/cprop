@@ -90,7 +90,7 @@ struct _CProp
 
     Vec_char *msgInf;
 
-    CutPool *cutPool;
+    CPCuts *CPCuts;
 
     char verbose;
 
@@ -242,7 +242,7 @@ CProp *cprop_create( int cols, const char integer[], const double lb[], const do
 
     cprop->msgInf = NULL;
 
-    cprop->cutPool = cut_pool_create( 4096 );
+    cprop->CPCuts = cpc_create( 4096 );
 
     return cprop;
 }
@@ -531,11 +531,10 @@ int cprop_add_constraint( CProp *cprop, int nz, const int idx[], const double co
 
     {
         double mult = toupper(sense) == 'G' || toupper(sense) == 'E' ? -1.0 : 1.0;
-        int irow = cprop_n_rows( cprop );
         char rName[256];
         sprintf( rName, "%s%s", rname, toupper(sense) == 'E' ? "p1" : "" );
         cprop_add_row( cprop, nz, idx, coef, rhs, mult, rName );
-        res1 = cprop_process_constraint( cprop, irow );
+        res1 = cprop_process_constraint( cprop, cprop_n_rows( cprop )-1 );
         if (cprop->verbose)
             printf("\n");
 
@@ -1182,7 +1181,7 @@ void cprop_generate_cuts_inf( CProp *cprop )
         {
             double rhs = nz-1-rhsDif;
 
-            cut_pool_add_cut( cprop->cutPool, nz, idx, coef, 'L', rhs );
+            cpc_add_cut( cprop->CPCuts, nz, idx, coef, 'L', rhs );
 
             memcpy( lidx, lnewidx, sizeof(int)*nz );
         }
@@ -1202,9 +1201,9 @@ char cprop_impl_graph_has_arc( const CProp *cprop, int dest, int source )
     return iset_has( is, source );
 }
 
-const CutPool *cprop_cut_pool( CProp *cprop )
+const CPCuts *cprop_cut_pool( CProp *cprop )
 {
-    return cprop->cutPool;
+    return cprop->CPCuts;
 }
 
 CProp *cprop_clone( const CProp *_cprop )
@@ -1318,6 +1317,34 @@ char cprop_equals( const CProp *cprop1, const CProp *cprop2 )
 }
 
 
+void cprop_clear( CProp *cprop )
+{
+    memcpy( cprop->lb, cprop->olb, sizeof(double)*cprop->cols );
+    memcpy( cprop->ub, cprop->oub, sizeof(double)*cprop->cols );
+
+    vec_int_clear( cprop->vnimpl );
+    vec_int_clear( cprop->vcolimpl );
+    vec_double_clear( cprop->voldlb );
+    vec_double_clear( cprop->voldub );
+    vec_IntPair_clear( cprop->lastArcsIG );
+    vec_int_clear( cprop->nNewArcsIG );
+    cprop->feasible = 1;
+
+    for ( int i=0 ; (i<cprop->cols*2+1) ; ++i )
+    {
+        ISet *is = cprop->implGIn[i];
+        if (is)
+        {
+            iset_free( &is );
+            cprop->implGIn[i] = NULL;
+        }
+    }
+    cprop->nimpl = 0;
+
+    vec_char_clear( cprop->msgInf );
+}
+
+
 void cprop_free( CProp **cprop )
 {
     free( (*cprop)->lb );
@@ -1367,7 +1394,7 @@ void cprop_free( CProp **cprop )
     free( (*cprop)->implGIn );
     
 
-    cut_pool_free( &(*cprop)->cutPool );
+    cpc_free( &(*cprop)->CPCuts );
 
     if ((*cprop)->msgInf)
         vec_char_free( &((*cprop)->msgInf) );
