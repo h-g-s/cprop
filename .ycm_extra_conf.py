@@ -43,8 +43,10 @@ flags = [
 '-Wno-variadic-macros',
 '-Wno-unused-variable',
 '-DCBC',
-'-I/usr/include/',
-'-I/usr/lib/gcc/x86_64-pc-linux-gnu/7.2.1/include/',
+#'-I/usr/lib/gcc/x86_64-pc-linux-gnu/7.2.1/include/',
+#'-I/usr/include/',
+#'-I/usr/lib/',
+#'-I/usr/include/bits/',
 '-I/usr/include/coin/',
 '-I/usr/include/coin/ThirdParty',
 # You 100% do NOT need -DUSE_CLANG_COMPLETER in your flags; only the YCM
@@ -56,7 +58,7 @@ flags = [
 # a "-std=<something>".
 # For a C project, you would set this to something like 'c99' instead of
 # 'c++11'.
-'-std=c++11',
+'-std=gnu99',
 # ...and the same thing goes for the magic -x option which specifies the
 # language that the files to be compiled are written in. This is mostly
 # relevant for c++ headers.

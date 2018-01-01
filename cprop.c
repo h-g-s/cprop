@@ -13,6 +13,7 @@ const double oo  = 1e23;
 #define VEPS  1e-10
 #define FIXED( lb, ub ) ( ub-lb <= VEPS )
 
+
 enum ConstraintType
 { 
     ConstraintBV,    // constraint involving only binary variables
@@ -21,13 +22,15 @@ enum ConstraintType
 } ;
 
 
-
 struct _CProp
 {
     int cols;
 
     double *lb;
     double *ub;
+
+    // if fixed at pre-processing
+    char *fixedAtPP;
 
     /* original bounds */
     double *olb;
@@ -76,8 +79,6 @@ struct _CProp
     Vec_IntPair *lastArcsIG; // last nodes added to the implication graph
     Vec_int *nNewArcsIG; // number of nodes added in the last operation to the implication graph
 
-
-
     char feasible;
 
     // Input arcs of implication graph
@@ -90,7 +91,7 @@ struct _CProp
 
     Vec_char *msgInf;
 
-    CPCuts *CPCuts;
+    CPCuts *cpcuts;
 
     char verbose;
 
@@ -123,18 +124,16 @@ void cprop_generate_cuts_inf( CProp *cprop );
 
 char cprop_impl_graph_has_arc( const CProp *cprop, int dest, int source );
 
+// fills all nodes connected to some other nodes in the implication graph
+// returns true if all nodes in dest can be implied by some node in source
+// alreadyIn indicates nodes already inserted in some previous layer
+char cprop_impl_graph_layer( const CProp *cprop, int nDest, int dest[], 
+                             int *nSource, int source[], char alreadyIn[]  );
 
 /* stored constraints in the format
  * ax <= b */
 void cprop_add_row( CProp *cprop, int nz, const int idx[], const double coef[], double rhs, double mult, const char rname[] );
-int cprop_nz( const CProp *cprop, int irow );
-const int *cprop_idx( const CProp *cprop, int row );
-const double *cprop_coef( const CProp *cprop, int row );
-double cprop_rhs( const CProp *cprop, int row );
-int cprop_n_rows( const CProp *cprop );
 
-int cprop_n_rows_col( const CProp *cprop, int col );
-int *cprop_rows_col( const CProp *cprop, int col );
 
 CProp *cprop_create( int cols, const char integer[], const double lb[], const double ub[], const char **name )
 {
@@ -151,6 +150,7 @@ CProp *cprop_create( int cols, const char integer[], const double lb[], const do
     ALLOCATE_VECTOR( cprop->ub, double, cols );
     ALLOCATE_VECTOR( cprop->olb, double, cols );
     ALLOCATE_VECTOR( cprop->oub, double, cols );
+    ALLOCATE_VECTOR_INI( cprop->fixedAtPP, char, cols );
 
     ALLOCATE_VECTOR( cprop->integer, char, cols );
     ALLOCATE_VECTOR( cprop->binary, char, cols );
@@ -198,8 +198,8 @@ CProp *cprop_create( int cols, const char integer[], const double lb[], const do
 
     /* temporary area in cprop */
     ALLOCATE_VECTOR( cprop->idx, int, cols );
-    ALLOCATE_VECTOR( cprop->lidx, int, cols );
-    ALLOCATE_VECTOR( cprop->lnewidx, int, cols );
+    ALLOCATE_VECTOR( cprop->lidx, int, cols*2+1 );
+    ALLOCATE_VECTOR( cprop->lnewidx, int, cols*2+1 );
     ALLOCATE_VECTOR( cprop->coef, double, cols );
     ALLOCATE_VECTOR( cprop->pv, double, cols );
     ALLOCATE_VECTOR( cprop->nv, double, cols );
@@ -213,15 +213,18 @@ CProp *cprop_create( int cols, const char integer[], const double lb[], const do
     cprop->vrnames = vec_char_create();
     cprop->vrnamest = vec_int_create();
 
+    int iniCapNZ = MAX( cols*2, 4096 );
+    int iniCapRows = MIN( 8192, cols );
+
     /* all constraints stored in the format
      * ax <= b */
     /* to store constraints */
-    cprop->vrstart = vec_int_create();
-    cprop->vrnz = vec_int_create();
-    cprop->vridx = vec_int_create();
-    cprop->vrcoef = vec_double_create();
-    cprop->vrrhs = vec_double_create();
-    cprop->vrtype = vec_char_create();
+    cprop->vrstart = vec_int_create_cap( iniCapRows );
+    cprop->vrnz = vec_int_create_cap( iniCapRows );
+    cprop->vridx = vec_int_create_cap( iniCapNZ );
+    cprop->vrcoef = vec_double_create_cap( iniCapNZ );
+    cprop->vrrhs = vec_double_create_cap( iniCapRows );
+    cprop->vrtype = vec_char_create_cap( iniCapRows );
     // in which rows a column appears
     cprop->rowsCol = v2d_create( cols );
 
@@ -242,7 +245,7 @@ CProp *cprop_create( int cols, const char integer[], const double lb[], const do
 
     cprop->msgInf = NULL;
 
-    cprop->CPCuts = cpc_create( 4096 );
+    cprop->cpcuts = cpc_create( 4096 );
 
     return cprop;
 }
@@ -426,6 +429,7 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
     return nimpl;
 }
 
+
 void cprop_report_infeasible_constraint( CProp *cprop, int irow, double minLhs )
 {
     char strRDes[256];
@@ -541,11 +545,10 @@ int cprop_add_constraint( CProp *cprop, int nz, const int idx[], const double co
     }
     if (toupper(sense)=='E')
     {
-        int irow = cprop_n_rows( cprop );
         char rName[256];
         sprintf( rName, "%s%s", rname, toupper(sense) == 'E' ? "p2" : "" );
         cprop_add_row( cprop, nz, idx, coef, rhs, 1.0, rName );
-        res2 = cprop_process_constraint( cprop, irow );
+        res2 = cprop_process_constraint( cprop, cprop_n_rows( cprop )-1 );
         if (cprop->verbose)
             printf("\n");
     }
@@ -689,6 +692,9 @@ RETURN_INFEASIBLE:
 
 void cprop_add_row( CProp *cprop, int nz, const int idx[], const double coef[], double rhs, double mult, const char rname[] )
 {
+    if (nz==0)
+        return;
+
     rhs = MIN( rhs, oo );
     rhs = MAX( rhs, -oo );
 
@@ -706,19 +712,24 @@ void cprop_add_row( CProp *cprop, int nz, const int idx[], const double coef[], 
     vec_int_push_back( vrstart, start );
     vec_int_push_back( vrnz, nz );
 
+#ifdef DEBUG
+    for ( int j=0 ; (j<nz) ; ++j )
+        assert( idx[j] >= 0 && idx[0] < cprop->cols );
+#endif
+
+    vec_int_push_back_v( vridx, nz, idx );
+
     /* number of binary, integer and unbounded variables in this constraint */
     int nBin = 0, nInt = 0, nNeg = 0, nPUnb = 0;
     for ( int j=0 ; (j<nz) ; ++j )
     {
-        assert( idx[j] >= 0 && idx[0] < cprop->cols );
-        vec_int_push_back( vridx, idx[j] );
         double v = MIN( coef[j], oo );
         v = MAX( -oo, v )*mult;
         vec_double_push_back( vrcoef, v );
 
         if (integer[idx[j]])
         {
-            if (lb[idx[j]]>= -1e-10 && ub[idx[j]]<=1+1e+10)
+            if (lb[idx[j]]>= -1e-10 && ub[idx[j]]<=1+1e-10)
                 nBin++;
             else
             {
@@ -845,13 +856,9 @@ int cprop_n_implications( const CProp *cprop )
 
 int cprop_implied_var( const CProp *cprop, int i )
 {
-    if (cprop->nimpl==0)
-    {
-        fprintf( stderr, "No implications were generated in the last operation.\n" );
-        abort();
-
-    }
-    return vec_int_get( cprop->vcolimpl, vec_int_size(cprop->vcolimpl)-cprop_n_implications(cprop)+i  );
+    int pos = vec_int_size( cprop->vcolimpl ) - i - 1;
+    assert( pos >= 0 && pos < vec_int_size( cprop->vcolimpl ) );
+    return vec_int_get( cprop->vcolimpl, pos  );
 }
 
 double cprop_get_lb( const CProp *cprop, int j )
@@ -935,6 +942,14 @@ int cprop_impl_graph_in_neigh( const CProp *cprop, int nodeId, int i )
     }
 
     return iset_element( cprop->implGIn[nodeId], i );
+}
+
+int cprop_impl_graph_in_d( const CProp *cprop, int nodeId )
+{
+    if (cprop->implGIn[nodeId]==0)
+        return 0;
+
+    return iset_n_elements(cprop->implGIn[nodeId]);
 }
 
 void cprop_set_verbose( CProp *cprop, char verbose )
@@ -1036,6 +1051,7 @@ void cprop_save_impl_graph( const CProp *cprop, const char *fName )
     assert( f );
 
     fprintf( f, "digraph ImplicationGraph {\n" );
+    fprintf( f, "\toverlap = false;\n" );
 
     const int nNodes = cprop->cols*2+1;
     for ( int i=0 ; i<nNodes ; ++i )
@@ -1095,9 +1111,6 @@ void cprop_generate_cuts_inf( CProp *cprop )
 
     int *idx = cprop->idx;
     double *coef = cprop->coef;
-    int *lidx = cprop->lidx;
-    int *lnewidx = cprop->lnewidx;
-
     int nodeInf = cprop_impl_graph_node_id( cprop, Infeasible, 0 );
 
     if (!G[nodeInf])
@@ -1105,89 +1118,58 @@ void cprop_generate_cuts_inf( CProp *cprop )
 
     if (iset_n_elements(G[nodeInf]) == 0) 
             return;
-
-    /* starts from the infeasibility */
-    int lnz = 1;
-    lidx[0] = cprop_impl_graph_node_id( cprop, Infeasible, 0 );
-
-    iset_clear( cprop->inodes );
     
-    //int ll = 0;
-    while ( lnz )
+    int nNodes = 1;
+    int *lidx = cprop->lidx;
+    lidx[0] = nodeInf;
+    
+    char *iv;
+    ALLOCATE_VECTOR_INI( iv, char, (cprop->cols*2+1) );
+    
+    char c = 1;
+    double rhs = 0;
+    while (c)
     {
-        //printf("== layer %d\n", ll++ );
-
-        int nz = 0;
-        /* all incident arcs  */
-        int rhsDif = 0;
-    
-        for ( int j=0 ; (j<lnz) ; ++j )
+        int nLayer;
+#ifdef DEBUG
+        for ( int ii=0 ; (ii<((cprop->cols*2+1))) ; ++ii )
+            assert(!iv[ii]);
+#endif
+        c = cprop_impl_graph_layer( cprop, nNodes, lidx, &nLayer, idx, iv );
+        if (!c)
+            break;
+        
+        rhs = nLayer-1;
+        
+        nNodes = nLayer;
+        
+        // filling cut
+        for ( int j=0 ; (j<nLayer) ; ++j )
         {
-            if (G[lidx[j]]==NULL)
-                continue;
-
-            //printf("  -- node %d\n", lidx[j] );
-            for ( int k=0 ; (k<iset_n_elements( G[lidx[j]])) ; ++k )
+            lidx[j] = idx[j];
+            switch (cprop_impl_graph_node_type(cprop, idx[j]))
             {
-
-                int el = iset_element( G[lidx[j]], k );
-
-                if (iset_has( cprop->inodes, el ))
-                    continue;
-
-                //printf("      -- el %d\n", el );
-
-                /* checking if this value is not implied by other node already inside the cut */
-                char alreadyImpl = 0;
-                for ( int l=0 ; (l<nz) ; ++l )
-                {
-                    if (cprop_impl_graph_has_arc( cprop, el, lnewidx[l] ))
-                    {
-                        alreadyImpl = 1;
-                        break;
-                    }
-                }
-
-                if (!alreadyImpl)
-                {
-                    int col = cprop_impl_graph_node_var( cprop, el );
-                    enum IGNType type = cprop_impl_graph_node_type( cprop, el );
-
-                    idx[nz] = col;
-                    lnewidx[nz] = el;
-                    iset_add( cprop->inodes, el );
-
-                    switch (type)
-                    {
-                    case EOne:
-                        coef[nz] = 1.0;
-                        break;
-                    case EZero:
-                        coef[nz] = -1.0;
-                        ++rhsDif;
-                        break;
-                    case Infeasible:
-                        fprintf( stderr, "Infeasible node should not appear here.\n" );
-                        abort();
-                        break;
-                    }
-
-                    ++nz;
-                }
-            } // neighbor
-        } /* last nodes processed */
-
-        if (nz)
-        {
-            double rhs = nz-1-rhsDif;
-
-            cpc_add_cut( cprop->CPCuts, nz, idx, coef, rhs );
-
-            memcpy( lidx, lnewidx, sizeof(int)*nz );
-        }
-
-        lnz = nz;
-    } // nodes to check
+                case EOne:
+                    coef[j] = 1.0;
+                    break;
+                case EZero:
+                    coef[j] = -1.0;
+                    rhs = rhs - 1.0;
+                    break;
+                case Infeasible:
+                    fprintf( stderr, "Not expected here." );
+                    abort();
+                    break;
+            }
+            idx[j] = cprop_impl_graph_node_var( cprop, idx[j] );
+        } // indexes
+        
+        CPCuts *cuts = cprop->cpcuts;
+        cpc_add_cut( cuts, nLayer, idx, coef, rhs );
+            
+    } // while layer processed
+    
+    free( iv );
 }
 
 
@@ -1203,7 +1185,7 @@ char cprop_impl_graph_has_arc( const CProp *cprop, int dest, int source )
 
 const CPCuts *cprop_cut_pool( CProp *cprop )
 {
-    return cprop->CPCuts;
+    return cprop->cpcuts;
 }
 
 CProp *cprop_clone( const CProp *_cprop )
@@ -1341,7 +1323,309 @@ void cprop_clear( CProp *cprop )
     }
     cprop->nimpl = 0;
 
-    vec_char_clear( cprop->msgInf );
+    if (cprop->msgInf)
+        vec_char_clear( cprop->msgInf );
+
+    cpc_clear( cprop->cpcuts );
+}
+
+char cprop_impl_graph_layer( const CProp *cprop, int nDest, int dest[], 
+                             int *nSource, int source[], char alreadyIn[]  )
+{
+    *nSource = 0;
+
+    cprop_save_impl_graph( cprop, "impll.dot" );
+
+#ifdef DEBUG
+    for ( int i=0 ; (i<cprop->cols*2+1) ; ++i )
+        assert( !alreadyIn[i] );
+#endif
+
+    ISet *is = iset_create( MAX( nDest, 1024 ) );
+    /* removing those already implied */
+    {
+        for ( int i=0 ; (i<nDest) ; ++i )
+            iset_add( is, dest[i] );
+
+        for ( int i=0 ; (i<nDest) ; ++i )
+        {
+            int id = dest[i];
+            int n = cprop_impl_graph_in_d( cprop, id );
+
+            for ( int j=0 ; (j<n) ; ++j )
+            {
+                int neigh = cprop_impl_graph_in_neigh( cprop, id, j );
+                if (iset_has(is, neigh))
+                {
+                    iset_remove( is, id );
+                    break;
+                }
+            }
+        } // all nodes
+
+        nDest = iset_n_elements(is);
+        for ( int i=0 ; (i<nDest) ; ++i )
+            dest[i] = iset_element( is, i );
+
+    }
+    
+    char someNew = 0;
+    
+    // for each node, or all neighbors are include
+    // if there are no neighbors, then the node itself is included
+    // at least for one node its neighbors should be included to generate a new cut
+    
+    for ( int id=0 ; (id<nDest) ; ++id )
+    {
+        int dNode = dest[id];
+        int nn = cprop_impl_graph_in_d( cprop, dNode );
+        for ( int j=0 ; (j<nn) ; ++j )
+        {
+            int s = cprop_impl_graph_in_neigh( cprop, dNode, j );
+            
+            if (alreadyIn[s])
+                continue;
+            
+            alreadyIn[s] = 1;
+            assert(*nSource<cprop->cols*2+1);
+            source[(*nSource)++] = s;
+            someNew = 1;
+        } // neighbors
+        
+        if (nn==0)
+            source[(*nSource)++] = dNode;
+    } // all nodes in destination
+
+    for ( int i=0 ; (i<(*nSource)) ; ++i )
+        alreadyIn[source[i]] = 0;
+
+    ISet *cand = is;
+    iset_clear( cand );
+
+    for ( int i=0 ; (i<(*nSource)) ; ++i )
+        iset_add( cand, source[i] );
+
+    *nSource = 0;
+
+    /* adding greedly first nodes which imply more nodes in the set */
+    int bestCand, candEval;
+EVALUATE_CANDIDATES:
+    bestCand = -1; candEval = 0;
+    for ( int i=0 ; (i<iset_n_elements(cand)) ; ++i )
+    {
+        int c = iset_element( cand, i );
+        int nr = 0;
+        // counting other canditate which could be removed if this candidate entered the set
+        for ( int ioc=0 ; (ioc<iset_n_elements(cand)) ; ++ioc )
+        {
+            if (ioc==i)
+                continue;
+            
+            int c2 = iset_element( cand, ioc );
+
+            if (cprop_impl_graph_has_arc( cprop, c2, c ))
+                ++nr;
+        } // checking neighbots
+        if (nr>candEval)
+        {
+            bestCand = c;
+            candEval = nr;
+        }
+    } // evaluating candidates
+
+    if (bestCand == -1)
+        goto RETURN_POINT;
+
+    // adding c and removing implied variables
+    assert( *nSource < cprop->cols*2+1 );
+    source[(*nSource)++] = bestCand;
+
+    // checking all vars implied by bestCand
+    for ( int i=0 ; (i<cprop_impl_graph_in_d(cprop,bestCand)) ; ++i )
+    {
+        int oc = cprop_impl_graph_in_neigh( cprop, bestCand, i );
+        if (cprop_impl_graph_has_arc( cprop, oc, bestCand ))
+            iset_remove( cand, oc );
+    } // all implied nodes being removed from cand
+    iset_remove( cand, bestCand );
+    goto EVALUATE_CANDIDATES;
+
+RETURN_POINT:
+
+    iset_free( &is );
+
+    return someNew;
+}
+
+
+void cprop_conclude_pre_processing( CProp *cprop )
+{
+    int nConstraints = vec_double_size(cprop->vrrhs);
+    Vec_int *constr = vec_int_create_cap( nConstraints );
+    char *ivc;
+    ALLOCATE_VECTOR_INI( ivc, char, nConstraints );
+    
+    double *olb = cprop->olb;
+    double *oub = cprop->oub;
+
+    double *lb = cprop->lb;
+    double *ub = cprop->ub;
+
+    const int cols = cprop->cols;
+    
+    // checking all 
+    // columns with updated bounds and their constraints
+    int newImpl = 0, nPass = 0, totalImpl = 0;
+PROCESS_CONSTRAINTS:
+    if (nPass) printf("CPROP: additional preprocessing pass %d\n", nPass );
+    ++nPass;
+
+    // checking all modified columns and their respective constraints
+    for ( int i=0 ; (i<cprop->cols) ; ++i )
+    {
+        if (fabs(olb[i]-lb[i])>1e-10 || fabs(oub[i]-ub[i])>1e-10)
+        {
+            cprop->fixedAtPP[i] = 1;
+            newImpl++;
+            int *rows = cprop_rows_col(cprop,i);
+            for ( int j=0 ; j<cprop_n_rows_col(cprop,i); ++j )
+            {
+                int r = rows[j];
+                if (!ivc[r])
+                {
+                    ivc[r] = 1;
+                    vec_int_push_back(constr, r );
+                }
+            }
+        }
+    }
+
+    memcpy( olb, lb, sizeof(double)*cols );
+    memcpy( oub, ub, sizeof(double)*cols );
+
+    /* processing constraints to check for additional implications */
+    for ( int i=0 ; (i<vec_int_size(constr)) ; ++i )
+        cprop_process_constraint( cprop, vec_int_get(constr,i) );
+
+    /* clearing constraint set */
+    if (newImpl)
+    {
+        totalImpl += newImpl;
+        for ( int i=0 ; (i<vec_int_size(constr)) ; ++i )
+            ivc[vec_int_get(constr,i)] = 0;
+        vec_int_clear(constr);
+        newImpl = 0;
+        goto PROCESS_CONSTRAINTS;
+    }
+    
+    // updating constraints to remove all columns fixed at pre-proc
+    if (totalImpl)
+    {
+        int newNZ = 0;
+        int newRows = 0;
+        for ( int i=0 ; i<cprop_n_rows(cprop) ; ++i )
+        {
+            char hasCol = 0;
+            for ( int j=0 ; (j<cprop_nz(cprop, i)) ; ++j )
+            {
+                if (!cprop->fixedAtPP[cprop_idx(cprop,i)[j]])
+                {
+                    newNZ++;
+                    hasCol = 1;
+                }
+            }
+            if (hasCol)
+                newRows++;
+        }
+                    
+        Vec_int *vridx = vec_int_create_cap( newNZ );
+        Vec_int *vrnz = vec_int_create_cap( newRows );
+        Vec_int *vrstart = vec_int_create_cap( newRows );
+        Vec_double *vrrhs = vec_double_create_cap( newRows );
+        Vec_double *vrcoef = vec_double_create_cap( newNZ );
+        for ( int i=0 ; i<cprop_n_rows(cprop) ; ++i )
+        {
+            int nzRow = 0;
+            double rhs = cprop_rhs( cprop, i );
+            char hasBinary = 0;
+            for ( int j=0 ; (j<cprop_nz(cprop,i)) ; ++j )
+            {
+                if (cprop->fixedAtPP[cprop_idx(cprop,i)[j]])
+                {
+                    if (cprop->lb[cprop_idx(cprop,i)[j]]>=0.999)
+                        rhs -= cprop_coef( cprop, i )[j];                
+                }
+                else
+                {
+                    nzRow++;
+                    if (cprop->binary[ cprop_idx(cprop,i)[j]])
+                        hasBinary = 1;
+                }
+            }
+            if (nzRow)
+            {
+                // just one binary, if does not results in implication
+                // then it can be discarded
+                if ( nzRow==1 && hasBinary )
+                    continue;
+                vec_double_push_back( vrrhs, rhs );
+                vec_int_push_back( vrstart, vec_int_size(vridx) );
+                vec_int_push_back( vrnz, nzRow );
+                for ( int j=0 ; (j<cprop_nz(cprop,i)) ; ++j )
+                {
+                    if (cprop->fixedAtPP[cprop_idx(cprop,i)[j]])
+                        continue;
+                        
+                    vec_int_push_back( vridx, cprop_idx( cprop, i )[j] );
+                    vec_double_push_back( vrcoef, cprop_coef( cprop, i )[j] );
+                } // all coefficients
+            } // nz 
+        } // all rows
+        
+        vec_int_free( &cprop->vridx );
+        vec_int_free( &cprop->vrnz );
+        vec_int_free( &cprop->vrstart );
+        vec_double_free( &cprop->vrrhs );
+        vec_double_free( &cprop->vrcoef );
+        
+        cprop->vridx = vridx;
+        cprop->vrnz = vrnz;
+        cprop->vrstart = vrstart;
+        cprop->vrrhs = vrrhs;
+        cprop->vrcoef = vrcoef;
+    }
+    
+    free( ivc );
+    vec_int_free( &constr );
+}
+
+void cprop_print_impl( const CProp *cprop )
+{
+    printf("vnimpl: ");
+    for ( int i=0 ; (i<vec_int_size(cprop->vnimpl)) ; ++i )
+        printf("%s, %d", !i ? "" : ", ", vec_int_get(cprop->vnimpl, i));
+    printf("\n");
+
+    printf("voldlb: ");
+    for ( int i=0 ; (i<vec_double_size(cprop->voldlb)) ; ++i )
+        printf("%s, %g", !i ? "" : ", ", vec_double_get(cprop->voldlb, i));
+    printf("\n");
+
+    printf("voldub: ");
+    for ( int i=0 ; (i<vec_double_size(cprop->voldub)) ; ++i )
+        printf("%s, %g", !i ? "" : ", ", vec_double_get(cprop->voldub, i));
+    printf("\n");
+
+    printf("vcolimpl: ");
+    for ( int i=0 ; (i<vec_int_size(cprop->vcolimpl)) ; ++i )
+        printf("%s, %d", !i ? "" : ", ", vec_int_get(cprop->vcolimpl, i));
+    printf("\n");
+}
+
+
+const char *cprop_fixed_at_pre_proc( const CProp *cprop )
+{
+    return cprop->fixedAtPP;
 }
 
 
@@ -1351,6 +1635,7 @@ void cprop_free( CProp **cprop )
     free( (*cprop)->ub );
     free( (*cprop)->olb );
     free( (*cprop)->oub );
+    free( (*cprop)->fixedAtPP );
     free( (*cprop)->integer );
     free( (*cprop)->binary );
     if ( (*cprop)->cname )
@@ -1394,7 +1679,7 @@ void cprop_free( CProp **cprop )
     free( (*cprop)->implGIn );
     
 
-    cpc_free( &(*cprop)->CPCuts );
+    cpc_free( &(*cprop)->cpcuts );
 
     if ((*cprop)->msgInf)
         vec_char_free( &((*cprop)->msgInf) );
@@ -1402,4 +1687,3 @@ void cprop_free( CProp **cprop )
     free( *cprop );
     *cprop = NULL;
 }
-

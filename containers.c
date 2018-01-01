@@ -16,6 +16,7 @@ static const unsigned int nHashvalues = sizeof(hashval)/sizeof(int);
 
 int cmp_string( const void *p1, const void *p2 );
 
+
 unsigned int str_hash( const char *str, const unsigned int hashSize )
 {
     const unsigned int len = (unsigned int) MIN( nHashvalues , strlen(str) );

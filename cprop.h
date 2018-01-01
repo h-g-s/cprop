@@ -60,6 +60,58 @@ CProp *cprop_clone( const CProp *_cprop );
 int cprop_add_constraint( CProp *cprop, int nz, const int idx[], const double coef[], char sense, double rhs, const char rname[] );
 
 
+/** @brief number of constraints stored in cprop
+ *
+ *  @param CProp constraint propagation object
+ **/
+int cprop_n_rows( const CProp *cprop );
+
+
+/** @brief number of non-zeros in constraint irow
+ *
+ *  @param CProp constraint propagation object
+ *  @param irow row index
+ **/
+int cprop_nz( const CProp *cprop, int irow );
+
+
+/** @brief column indexes in constraint irow
+ *
+ *  @param CProp constraint propagation object
+ *  @param irow row index
+ **/
+const int *cprop_idx( const CProp *cprop, int row );
+
+
+/** @brief column coefficients in constraint irow
+ *
+ *  @param CProp constraint propagation object
+ *  @param irow row index
+ **/
+const double *cprop_coef( const CProp *cprop, int row );
+
+
+/** @brief number of constraints stored in cprop
+ *
+ *  @param CProp constraint propagation object
+ *  @param irow row index
+ **/
+double cprop_rhs( const CProp *cprop, int row );
+
+
+/** @brief should be called after all initial constraints are added
+ *
+ *  @param CProp constraint propagation object
+ **/
+void cprop_conclude_pre_processing( CProp *cprop );
+
+
+/** @brief returns a vector indicating if column was fixed at pre-processing
+ * 
+ */
+const char *cprop_fixed_at_pre_proc( const CProp *cprop );
+
+
 /** @brief updates the bounds of a variable
  *
  * Updates the bounds of variable j to [l, u] and performs Constraint Propagation.
@@ -237,6 +289,51 @@ char cprop_equals( const CProp *cprop1, const CProp *cprop2 );
 void cprop_clear( CProp *cprop );
 
 
+/** @brief returns the number of non zeros in constraint irow
+ * @param cprop Constraint Propagation Object
+ * @return number of rows
+ */
+int cprop_n_rows( const CProp *cprop );
+
+
+/** @brief returns the number of non-zeros in constraint irow
+ * @param cprop Constraint Propagation Object
+ * @param irow row index
+ * @return number of variables in row irow
+ */
+int cprop_nz( const CProp *cprop, int irow );
+
+
+/** @brief returns the column indexes in row irow
+ * @param cprop Constraint Propagation Object
+ * @param irow row index
+ * @return column indexes vector
+ */
+const int *cprop_idx( const CProp *cprop, int row );
+
+
+/** @brief returns the column cofficients in row irow
+ * @param cprop Constraint Propagation Object
+ * @param irow row index
+ * @return column coefficients vector
+ */
+const double *cprop_coef( const CProp *cprop, int row );
+
+
+/** @brief returns the right-and-side of row irow
+ * @param cprop Constraint Propagation Object
+ * @param irow row index
+ * @return right hand side
+ */
+
+double cprop_rhs( const CProp *cprop, int row );
+
+
+
+int cprop_n_rows_col( const CProp *cprop, int col );
+int *cprop_rows_col( const CProp *cprop, int col );
+
+
 /** @brief frees memory of cprop object 
  *
  * Frees memory of cprop object and sets it to NULL
@@ -245,6 +342,10 @@ void cprop_clear( CProp *cprop );
 void cprop_free( CProp **cprop );
 
 
+
+
+
+void cprop_print_impl( const CProp *cprop );
 
 
 #endif

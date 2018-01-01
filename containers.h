@@ -53,6 +53,7 @@ int vec_##type##_capacity( const Vec_##type *vec ); \
 void vec_##type##_clear( Vec_##type *vec ); \
 void vec_##type##_free( Vec_##type **vec ); \
 void vec_##type##_push_back( Vec_##type *vec, const type value ); \
+void vec_##type##_push_back_v( Vec_##type *vec, int n, const type v[] ); \
 type vec_##type##_pop_back( Vec_##type *vec ); \
 /* sets a value into an existing position */\
 void vec_##type##_set( Vec_##type *vec, const int pos, const type value ); \
@@ -71,6 +72,7 @@ void vec_##type##_resize( Vec_##type *vec, const int size, const type valueNewEl
 int vec_##type##_find( const Vec_##type *vec, const type value ); \
 /* removes element with value, changes the order of the vector since the last element will go to the position of the removed element */ \
 void vec_##type##_remove(Vec_##type *vec, const type value ); \
+void vec_##type##_remove_positions( Vec_##type *vec, int nPos, const int positions[] ); \
 void vec_##type##_insert_unique( Vec_##type *vec, const type value );
 
 /* dictionary which maps strings to another type */
@@ -219,6 +221,20 @@ void vec_##type##_push_back( Vec_##type *vec, const type value ) { \
    } \
    vec->array[vec->size] = value; \
    vec->size++; \
+} \
+void vec_##type##_push_back_v( Vec_##type *vec, int n, const type v[] ) { \
+   if ( vec->size+n >= vec->capacity ) { \
+      vec->capacity = MAX( vec->capacity*2, vec->size+n+8 ); \
+      type *p =(type *) realloc( vec->array, sizeof(type)*vec->capacity ); \
+      if (!p) { \
+         fprintf( stderr, "ERROR: out of memory.\n" ); \
+         fprintf( stderr, "\t%s:%d\n", __FILE__, __LINE__ ); \
+         abort(); \
+      } \
+      vec->array = p; \
+   } \
+   memcpy( vec->array+vec->size, v, sizeof(type)*n ); \
+   vec->size += n; \
 } \
 type vec_##type##_pop_back( Vec_##type *vec ) { \
    if (vec->size==0) { \
@@ -372,6 +388,24 @@ void vec_##type##_remove(Vec_##type *vec, const type value ) { \
     if ( pos == vec_##type##_size(vec)-1 ) { vec->size--; return; } \
     vec_##type##_swap( vec, pos, vec_##type##_size(vec)-1 ); \
     vec->size--; \
+} \
+void vec_##type##_remove_positions( Vec_##type *vec, int nPos, const int positions[] ) { \
+    assert( nPos <= vec->size && nPos >= 1 ); \
+    assert( vec!=NULL && positions!=NULL ); \
+    while ( (--nPos) >=0 ) { \
+        int p = positions[nPos]; \
+        assert( p>=0 && p<vec->size ); \
+        if ( nPos && p<=positions[nPos-1] ) { \
+            fprintf( stderr, "Positions should be informed in ascending order.\n" ); \
+            abort(); \
+        } \
+        if ( p == vec->size-1 )  \
+            vec->size--; \
+        else { \
+            vec_##type##_swap( vec, p, vec->size-1 ); \
+            vec->size--; \
+        } \
+    } \
 } \
 void vec_##type##_insert_unique( Vec_##type *vec, const type value ) { \
     if (vec_##type##_find( vec, value )==NOT_FOUND) \

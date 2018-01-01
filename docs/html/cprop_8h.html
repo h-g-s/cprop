@@ -93,9 +93,15 @@ Functions</h2></td></tr>
 <tr class="memitem:ad1944f1881f4cf41fb11341612fe1944"><td class="memItemLeft" align="right" valign="top">CProp *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#ad1944f1881f4cf41fb11341612fe1944">cprop_create</a> (int cols, const char integer[], const double lb[], const double ub[], const char **name)</td></tr>
 <tr class="memdesc:ad1944f1881f4cf41fb11341612fe1944"><td class="mdescLeft">&#160;</td><td class="mdescRight">creates a new CProp object  <a href="#ad1944f1881f4cf41fb11341612fe1944">More...</a><br /></td></tr>
 <tr class="separator:ad1944f1881f4cf41fb11341612fe1944"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a080dcde213015d27a9cb5fe68ba20422"><td class="memItemLeft" align="right" valign="top">CProp *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a080dcde213015d27a9cb5fe68ba20422">cprop_clone</a> (const CProp *_cprop)</td></tr>
+<tr class="memdesc:a080dcde213015d27a9cb5fe68ba20422"><td class="mdescLeft">&#160;</td><td class="mdescRight">creates a copy of a constraint propagation object  <a href="#a080dcde213015d27a9cb5fe68ba20422">More...</a><br /></td></tr>
+<tr class="separator:a080dcde213015d27a9cb5fe68ba20422"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4f434f5734e21d7a021878d0c1a0c85a"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a4f434f5734e21d7a021878d0c1a0c85a">cprop_add_constraint</a> (CProp *cprop, int nz, const int idx[], const double coef[], char sense, double rhs, const char rname[])</td></tr>
 <tr class="memdesc:a4f434f5734e21d7a021878d0c1a0c85a"><td class="mdescLeft">&#160;</td><td class="mdescRight">adds a new constraint  <a href="#a4f434f5734e21d7a021878d0c1a0c85a">More...</a><br /></td></tr>
 <tr class="separator:a4f434f5734e21d7a021878d0c1a0c85a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac3b4c70127e6c19efc2a89effb07074b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#ac3b4c70127e6c19efc2a89effb07074b">cprop_store_bounds</a> (CProp *cprop)</td></tr>
+<tr class="memdesc:ac3b4c70127e6c19efc2a89effb07074b"><td class="mdescLeft">&#160;</td><td class="mdescRight">stores the updated variable bounds after adding constraints  <a href="#ac3b4c70127e6c19efc2a89effb07074b">More...</a><br /></td></tr>
+<tr class="separator:ac3b4c70127e6c19efc2a89effb07074b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a99fd91df90b01723782472431fba22ba"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a99fd91df90b01723782472431fba22ba">cprop_update_bound</a> (CProp *cprop, int j, double l, double u)</td></tr>
 <tr class="memdesc:a99fd91df90b01723782472431fba22ba"><td class="mdescLeft">&#160;</td><td class="mdescRight">updates the bounds of a variable  <a href="#a99fd91df90b01723782472431fba22ba">More...</a><br /></td></tr>
 <tr class="separator:a99fd91df90b01723782472431fba22ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -141,12 +147,21 @@ Functions</h2></td></tr>
 <tr class="memitem:a57637989790ccf0a970d1376774838ca"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a57637989790ccf0a970d1376774838ca">cprop_set_verbose</a> (CProp *cprop, char verbose)</td></tr>
 <tr class="memdesc:a57637989790ccf0a970d1376774838ca"><td class="mdescLeft">&#160;</td><td class="mdescRight">activates detailed printing of implications as they are discovered  <a href="#a57637989790ccf0a970d1376774838ca">More...</a><br /></td></tr>
 <tr class="separator:a57637989790ccf0a970d1376774838ca"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2da3ba05fc2593964bcd4b3a927f56df"><td class="memItemLeft" align="right" valign="top">const CutPool *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a2da3ba05fc2593964bcd4b3a927f56df">cprop_cut_pool</a> (CProp *cprop)</td></tr>
-<tr class="memdesc:a2da3ba05fc2593964bcd4b3a927f56df"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the cut pool with all cuts discovered so far  <a href="#a2da3ba05fc2593964bcd4b3a927f56df">More...</a><br /></td></tr>
-<tr class="separator:a2da3ba05fc2593964bcd4b3a927f56df"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8b0923202a92b72cb7d8fd0f8b40beee"><td class="memItemLeft" align="right" valign="top">const CPCuts *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a8b0923202a92b72cb7d8fd0f8b40beee">cprop_cut_pool</a> (CProp *cprop)</td></tr>
+<tr class="memdesc:a8b0923202a92b72cb7d8fd0f8b40beee"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the cut pool with all cuts discovered so far  <a href="#a8b0923202a92b72cb7d8fd0f8b40beee">More...</a><br /></td></tr>
+<tr class="separator:a8b0923202a92b72cb7d8fd0f8b40beee"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2faf74afa9fe7eed15e0a101a2367750"><td class="memItemLeft" align="right" valign="top">char&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a2faf74afa9fe7eed15e0a101a2367750">cprop_equals</a> (const CProp *cprop1, const CProp *cprop2)</td></tr>
+<tr class="memdesc:a2faf74afa9fe7eed15e0a101a2367750"><td class="mdescLeft">&#160;</td><td class="mdescRight">compares two constraint propagation objects  <a href="#a2faf74afa9fe7eed15e0a101a2367750">More...</a><br /></td></tr>
+<tr class="separator:a2faf74afa9fe7eed15e0a101a2367750"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2e8857d587bfe4b13fe289a8eecee727"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#a2e8857d587bfe4b13fe289a8eecee727">cprop_clear</a> (CProp *cprop)</td></tr>
+<tr class="memdesc:a2e8857d587bfe4b13fe289a8eecee727"><td class="mdescLeft">&#160;</td><td class="mdescRight">goes back to the original state  <a href="#a2e8857d587bfe4b13fe289a8eecee727">More...</a><br /></td></tr>
+<tr class="separator:a2e8857d587bfe4b13fe289a8eecee727"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afc2abeb70d154ea54b99250837142211"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cprop_8h.html#afc2abeb70d154ea54b99250837142211">cprop_free</a> (CProp **cprop)</td></tr>
 <tr class="memdesc:afc2abeb70d154ea54b99250837142211"><td class="mdescLeft">&#160;</td><td class="mdescRight">frees memory of cprop object  <a href="#afc2abeb70d154ea54b99250837142211">More...</a><br /></td></tr>
 <tr class="separator:afc2abeb70d154ea54b99250837142211"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac53d1607dc6f8e21c14ff0f80c1aeb0b"><td class="memItemLeft" align="right" valign="top"><a id="ac53d1607dc6f8e21c14ff0f80c1aeb0b"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>cprop_print_impl</b> (const CProp *cprop)</td></tr>
+<tr class="separator:ac53d1607dc6f8e21c14ff0f80c1aeb0b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>constraint propagation engine API </p>
@@ -176,7 +191,7 @@ Functions</h2></td></tr>
 </td></tr>
 </table>
 
-<p class="definition">Definition at line <a class="el" href="cprop_8h_source.html#l00131">131</a> of file <a class="el" href="cprop_8h_source.html">cprop.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="cprop_8h_source.html#l00148">148</a> of file <a class="el" href="cprop_8h_source.html">cprop.h</a>.</p>
 
 </div>
 </div>
@@ -254,6 +269,53 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a2e8857d587bfe4b13fe289a8eecee727"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2e8857d587bfe4b13fe289a8eecee727">&#9670;&nbsp;</a></span>cprop_clear()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void cprop_clear </td>
+          <td>(</td>
+          <td class="paramtype">CProp *&#160;</td>
+          <td class="paramname"><em>cprop</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>goes back to the original state </p>
+
+</div>
+</div>
+<a id="a080dcde213015d27a9cb5fe68ba20422"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a080dcde213015d27a9cb5fe68ba20422">&#9670;&nbsp;</a></span>cprop_clone()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">CProp* cprop_clone </td>
+          <td>(</td>
+          <td class="paramtype">const CProp *&#160;</td>
+          <td class="paramname"><em>_cprop</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>creates a copy of a constraint propagation object </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">CProp</td><td>constraint propagation object </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>constraint propagation object </dd></dl>
+
+</div>
+</div>
 <a id="ad1944f1881f4cf41fb11341612fe1944"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ad1944f1881f4cf41fb11341612fe1944">&#9670;&nbsp;</a></span>cprop_create()</h2>
 
@@ -310,17 +372,18 @@ Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>constraint propagation object </dd></dl>
 
 </div>
 </div>
-<a id="a2da3ba05fc2593964bcd4b3a927f56df"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2da3ba05fc2593964bcd4b3a927f56df">&#9670;&nbsp;</a></span>cprop_cut_pool()</h2>
+<a id="a8b0923202a92b72cb7d8fd0f8b40beee"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8b0923202a92b72cb7d8fd0f8b40beee">&#9670;&nbsp;</a></span>cprop_cut_pool()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">const CutPool* cprop_cut_pool </td>
+          <td class="memname">const CPCuts* cprop_cut_pool </td>
           <td>(</td>
           <td class="paramtype">CProp *&#160;</td>
           <td class="paramname"><em>cprop</em></td><td>)</td>
@@ -336,6 +399,36 @@ Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a id="a2faf74afa9fe7eed15e0a101a2367750"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2faf74afa9fe7eed15e0a101a2367750">&#9670;&nbsp;</a></span>cprop_equals()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">char cprop_equals </td>
+          <td>(</td>
+          <td class="paramtype">const CProp *&#160;</td>
+          <td class="paramname"><em>cprop1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const CProp *&#160;</td>
+          <td class="paramname"><em>cprop2</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>compares two constraint propagation objects </p>
 
 </div>
 </div>
@@ -744,13 +837,13 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>returns how many implications the last change produced </p>
-<p>returns how many implications the last action (add constraint or change bound) produced</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">cprop</td><td>constraint propagation object </td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>returns how many implications the last action (add constraint or change bound) produced </dd></dl>
 
 </div>
 </div>
@@ -829,6 +922,32 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="ac3b4c70127e6c19efc2a89effb07074b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac3b4c70127e6c19efc2a89effb07074b">&#9670;&nbsp;</a></span>cprop_store_bounds()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void cprop_store_bounds </td>
+          <td>(</td>
+          <td class="paramtype">CProp *&#160;</td>
+          <td class="paramname"><em>cprop</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>stores the updated variable bounds after adding constraints </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">CProp</td><td>constraint propagation object </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="ad663a2f069415487bd43457b628ad13a"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ad663a2f069415487bd43457b628ad13a">&#9670;&nbsp;</a></span>cprop_undo()</h2>
 
@@ -846,7 +965,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>undo the last bound changed and all its implications </p>
-<p>Undo the last bound changed and all its implications. Can be called multiple times (unlimited undo)</p>
+<p>Undo the last bound changed and all its implications. Can be called multiple times (unlimited undo) to go back to the initial state.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">cprop</td><td>constraint propagation object </td></tr>

@@ -78,7 +78,6 @@ exit(1);
 #define SSTR( x ) dynamic_cast< std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
-static inline bool dbl_equal( const double v1, const double v2 );
 
 static inline bool is_integer( const double v );
 
@@ -1372,7 +1371,7 @@ int lp_optimize(LinearProgram *lp)
     lp->nOptimizations++;
 
     /* error handling */
-    char errorMsg[256] = "";
+    char errorMsg[512] = "";
     int errorLine = -1;
 
     /* check if problem will be transformed in all integer */
@@ -1615,7 +1614,7 @@ GLPK_GET_MIP_SOLUTION:
         if (linearProgram->isAbandoned()) {
             sprintf(errorMsg, "Numerical difficulties, linear program abandoned.\n");
             errorLine = __LINE__;
-            goto CBC_OPTIMIZATION_ERROR;
+            goto CBC_OPTIMIZATION_CONCLUDED;
         }
         if ((linearProgram->isProvenPrimalInfeasible()) || (linearProgram->isProvenDualInfeasible())) {
             lp->status = LP_INFEASIBLE;
@@ -2299,7 +2298,7 @@ int lp_strengthen_with_cuts( LinearProgram *lp, const int maxRoundsCuts[] )
     printf("optimizations %d obj %g\n", lp->nOptimizations, lp_obj_value(lp) );
 #ifdef CBC
 CUTGEN:
-    int origRows = lp_rows( lp );
+    //int origRows = lp_rows( lp );
     int newCuts = 0;
     char message[256] = "";
 
@@ -2415,7 +2414,16 @@ CUTGEN:
 
         newCuts = cuts.sizeCuts();
         osiLP->applyCuts( cuts );
-        assert( newCuts == lp_rows(lp)-origRows );
+        //assert( newCuts == lp_rows(lp)-origRows );
+
+#ifdef NEED_OWN_INDEX
+        {
+            char rowName[256];
+            for ( int ii=0 ; (ii<newCuts) ; ++ii )
+                (*lp->rowNameIdx)[lp_row_name(lp, lp_rows(lp)-ii, rowName)] = lp_rows(lp)-ii;
+        }
+#endif
+
     }
 
 
@@ -3127,7 +3135,7 @@ void lp_config_cbc_params(LinearProgram *lp, vector<string> &cbcP)
             cbcP.push_back("0");
         }
     }
-
+/*
     cbcP.push_back("-zero");
     cbcP.push_back("ifmove");
 
@@ -3141,7 +3149,7 @@ void lp_config_cbc_params(LinearProgram *lp, vector<string> &cbcP)
     cbcP.push_back("endonly");
 
     cbcP.push_back("-latwomir");
-    cbcP.push_back("endonly");
+    cbcP.push_back("endonly"); */
 
     if (lp->cutoff != DBL_MAX)
     {
@@ -4504,10 +4512,6 @@ void lp_remove_row( LinearProgram *lp, int idxRow )
 #endif
 }
 
-bool dbl_equal( const double v1, const double v2 )
-{
-    return (fabs( v2-v1 ) <= 1e-9);
-}
 
 double round( const double v )
 {
@@ -4597,8 +4601,8 @@ void lp_remove_rows( LinearProgram *lp, int nRows, int *rows )
         {
             lp_row_name( lp, rows[i], rName );
             map< string, int >::iterator mIt = (*lp->rowNameIdx).find( string(rName) );
-            assert( mIt != (*lp->rowNameIdx).end() );
-            (*lp->rowNameIdx).erase( mIt );
+            if (mIt != (*lp->rowNameIdx).end())
+                (*lp->rowNameIdx).erase( mIt );
         }
     }
 #endif
@@ -4632,8 +4636,11 @@ void lp_remove_rows( LinearProgram *lp, int nRows, int *rows )
     free( rset );
 #endif
 #ifdef GLPK
-    fprintf( stderr, "Call not implemented in LP yet.\n");
-    abort();
+    for ( int i=0 ; (i<nRows) ; ++i )
+        ++rows[i];
+    glp_del_rows( lp->_lp, nRows, rows-1 );
+    for ( int i=0 ; (i<nRows) ; ++i )
+        --rows[i];
 #endif
 
 #ifdef NEED_OWN_INDEX

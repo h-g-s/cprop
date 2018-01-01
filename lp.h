@@ -1,3 +1,7 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef LP_HEADER
 #define LP_HEADER
 
@@ -207,3 +211,8 @@ void lp_set_callback( LinearProgram *lp, lp_cb callback, void *data );
 void lp_set_store_names( char store );
 
 #endif
+
+#ifdef __cplusplus
+}
+#endif
+
