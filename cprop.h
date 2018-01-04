@@ -292,8 +292,26 @@ void cprop_clear( CProp *cprop );
 /** @brief returns the number of non zeros in constraint irow
  * @param cprop Constraint Propagation Object
  * @return number of rows
+ * @param irow row index
+ * @return 1 if row is part of an equality, 0 otherwise
  */
 int cprop_n_rows( const CProp *cprop );
+
+
+/** @brief returns the name of row 0
+ * @param cprop Constraint Propagation Object
+ * @param irow row index
+ * @return row name
+ */
+const char *cprop_row_name( const CProp *cprop, int i );
+
+
+
+/** @brief checks if constraint irow is part of an equality (with row irow+1)
+ * @param cprop Constraint Propagation Object
+ * 
+ **/
+char cprop_is_equality( const CProp *cprop, int irow );
 
 
 /** @brief returns the number of non-zeros in constraint irow
@@ -340,8 +358,6 @@ int *cprop_rows_col( const CProp *cprop, int col );
  *
  **/
 void cprop_free( CProp **cprop );
-
-
 
 
 

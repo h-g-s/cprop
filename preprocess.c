@@ -1,14 +1,36 @@
 #include <stdio.h>
+#include <string.h>
 #include <float.h>
 #include <time.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <signal.h>
 #include "macros.h"
 #include "memory.h"
 #include "lp.h"
 #include "cprop.h"
 #include "containers.h"
 #include "strutils.h"
+#include "cprop_lp.h"
+
+
+void conectSignals();
+void exitPP( int sig );
+
+/* output information */
+LinearProgram *mip = NULL, *ppmip = NULL;
+CProp *cprop = NULL;
+char probName[256] = "";
+char feasibleLP = 0, feasibleCPROP = 0, feasiblePPLP = 0;
+double secread = 0, seclpopt = 0, cpsecs = 0, ppsecs = 0, secpplpopt = 0;
+double objlp = DBL_MAX, objpplp = DBL_MAX;
+char msgError[1024] = "";
+int cols = 0, rows = 0, nz = 0;
+int ppcols = 0, pprows = 0, ppnz = 0;
+int *origCols = NULL;
+
+#define EXEC_AND_STORE_TIME( code, seconds ) ( { clock_t start = clock(); code; clock_t end = clock(); seconds = ( ((double)end-start)/((double)CLOCKS_PER_SEC) ); } )
+
 
 int main( int argc, char **argv )
 {
@@ -18,150 +40,188 @@ int main( int argc, char **argv )
         exit( EXIT_FAILURE );
     }
 
-    LinearProgram *mip = lp_create();
-    clock_t cla = clock();
-    lp_read( mip, argv[1] );
-    clock_t clb = clock();
-    double secread = ((double)clb-cla) / ((double)CLOCKS_PER_SEC);
-
-    printf("Read in %.4f seconds\n", secread );
+    getFileName( probName, argv[1] );
     
-    char feasible = 1;
-    clock_t stopt = clock();
-    int status = lp_optimize_as_continuous( mip );
-    clock_t edopt = clock();
-    double secopt = ((double)edopt-stopt) /  ((double)CLOCKS_PER_SEC);
+    /* now, setting a function to handle errors */
+    conectSignals();
 
-    double obj = DBL_MAX;
+    mip = lp_create();
+
+    EXEC_AND_STORE_TIME( lp_read( mip, argv[1] ), secread );
+
+    cols = lp_cols( mip );
+    rows = lp_rows( mip );
+    nz = lp_nz( mip );
+    printf("Read in %.4f seconds\n", secread );
+    printf("Original MIP has dimensions %d/%d/%d (cols/rows/nz)\n", cols, rows, nz );
+
+    int status;
+    EXEC_AND_STORE_TIME( status = lp_optimize_as_continuous( mip ), seclpopt );
+
     if (status!=LP_OPTIMAL)
     {
-        feasible = 0;
+        feasibleLP = 0;
 
         if (status!=LP_INFEASIBLE)
         {
             fprintf( stderr, "Error while optimizing. Status %d\n", status );
             exit( EXIT_FAILURE );
         }
-
     }
     else
     {
-        feasible = 1;
-        obj = lp_obj_value( mip );
-        printf("Initial LP relaxation solved in %.4f seconds, obj is %g\n", secopt, lp_obj_value(mip) );
+        feasibleLP = 1;
+        objlp = lp_obj_value( mip );
+        printf("Initial LP relaxation solved in %.4f seconds, obj is %g\n", seclpopt, lp_obj_value(mip) );
     } 
-    
-    int n = lp_cols( mip );
-    
-    char *integer;
-    ALLOCATE_VECTOR( integer, char, n );
-    double *lb, *ub, *coef;
-    int *idx;
-    ALLOCATE_VECTOR( idx, int, n );
-    ALLOCATE_VECTOR( lb, double, n );
-    ALLOCATE_VECTOR( ub, double, n );
-    ALLOCATE_VECTOR( coef, double, n );
         
-    for ( int i=0 ; (i<n) ; ++i )
-        integer[i] = lp_is_integer( mip, i );
-    for ( int i=0 ; (i<n) ; ++i )
-        lb[i] = lp_col_lb( mip, i );
-    for ( int i=0 ; (i<n) ; ++i )
-        ub[i] = lp_col_ub( mip, i );
-        
-    StrV *names = strv_create( 256 );
-    for ( int i=0 ; (i<n) ; ++i )
+    EXEC_AND_STORE_TIME( cprop = cprop_create_from_mip( mip, 0 ), cpsecs );    
+
+    feasibleCPROP = cprop_feasible( cprop );
+
+    if (!cprop)
     {
-        char cname[256];
-        strv_push_back( names, lp_col_name( mip, i, cname ) );
+        strcpy( msgError, "Could not create CPROP.\n" );
+        abort();
     }
+
+    printf("CPROP preprocessing took %.4f seconds.\n", cpsecs );
     
-    clock_t cpst = clock();
+    ALLOCATE_VECTOR( origCols, int, cols );
+    
+    EXEC_AND_STORE_TIME( ppmip = cprop_preprocess( cprop, mip, 1, origCols ), ppsecs );
+    
+    ppcols = lp_cols( ppmip );
+    pprows = lp_rows( ppmip );
+    ppnz = lp_nz( ppmip );
 
-    CProp *cprop = cprop_create( n, integer, lb, ub, (const char**)strv_ptr( names ) );
-
-    cprop_set_verbose( cprop, 1 );
-        
-    clock_t cped;
-    double cpsecs;
-    char madeInf;
-    double obj2;
-    int nImpl;
-    // adding constraints
-    for ( int i=0 ; (i<lp_rows(mip)) ; ++i )
+    printf("Pre-processed MIP has dimensions %d/%d/%d (cols/rows/nz)\n", ppcols, pprows, ppnz );
+    
+    EXEC_AND_STORE_TIME( status = lp_optimize_as_continuous( ppmip ), secpplpopt );
+    if (status!=LP_OPTIMAL)
     {
-        int nz = lp_row( mip, i, idx, coef );
-        char rname[256];
-        cprop_add_constraint( cprop, nz, idx, coef, lp_sense(mip,i), lp_rhs(mip,i), lp_row_name(mip, i, rname) );
-        if (!cprop_feasible(cprop))
+        feasiblePPLP = 0;
+
+        if (status!=LP_INFEASIBLE)
         {
-            char rname[256];
-            lp_row_name( mip, i, rname );
-            printf("Adding constraints %s made the problem infeasible.\n", rname );
-            printf("CPROP msg: %s\n", cprop_inf_msg(cprop) );
-            goto END;
+            fprintf( stderr, "Error while optimizing. Status %d\n", status );
+            exit( EXIT_FAILURE );
         }
-    }
-    
-    cprop_conclude_pre_processing( cprop );
-    cped = clock();
-    cpsecs = ((double)cped-cpst) / ((double)CLOCKS_PER_SEC);
-    printf("CPROP in %.4f seconds.\n", cpsecs );
-
-    nImpl = 0;
-    for ( int j=0 ; (j<lp_cols(mip)) ; ++j )
-    {
-        if (cprop_get_lb(cprop,j)>=lp_col_lb(mip,j)+1e-10 || cprop_get_ub(cprop,j)<=lp_col_ub(mip,j)-1e-10)
-        {
-            lp_set_col_bounds( mip, j, cprop_get_lb(cprop,j), cprop_get_ub(cprop,j));
-            nImpl++;
-        }
-    }
-    printf("CPROP fixed %d variables.\n", nImpl );
-
-    madeInf = 0;
-    obj2 = DBL_MAX;
-    if (nImpl)
-    {
-        int st2 = lp_optimize_as_continuous( mip );
-        if (feasible)
-            madeInf = (st2 == LP_INFEASIBLE);
-        if (st2==LP_OPTIMAL)
-            obj2 = lp_obj_value( mip );
-
-        lp_write_lp( mip, "pp.lp" );
-
     }
     else
-        obj2 = obj;
-    
-
-    // writing summary
     {
-        char probName[256];
-        getFileName( probName, argv[1] );
+        feasiblePPLP = 1;
+        objpplp = lp_obj_value( ppmip );
+        printf("Initial LP relaxation of Pre-Processed problem solved in %.4f seconds, obj is %g\n", secpplpopt, lp_obj_value(ppmip) );
+    }
+    
+    exitPP( 0 );
+}
 
-        char exists = 0;
+void conectSignals()
+{
+    /* processing stopping due to some error */
+    signal( SIGHUP, exitPP ); // user's terminal is disconnected
+    signal( SIGABRT, exitPP ); // process detects error and reports by calling abort
+    signal( SIGSEGV, exitPP ); // segmentation violation
+    signal( SIGSTKFLT, exitPP ); // stack fault
+    signal( SIGBUS, exitPP ); // access to an invalid address
+    signal( SIGFPE, exitPP ); // floating point exception
+    signal( SIGILL, exitPP ); // illegal instruction (usually a corrupted executable)
+    signal( SIGSYS, exitPP ); // bad system call
+    signal( SIGXFSZ, exitPP ); // file size limit exceeded
+    signal( SIGXCPU, exitPP ); // CPU limit exceeded
+    signal( SIGPIPE, exitPP ); // broken pipe
+    
+    /* process stopped by the user */
+    signal( SIGQUIT, exitPP ); // terminate process and generate core dump
+    signal( SIGINT, exitPP ); // interruptec (ctrl+c)
+    signal( SIGTERM, exitPP ); // generated by "kill" command
+}
 
-        // checking if file exists
-        {
-            FILE *fe = fopen("summary.csv", "r");
-            exists = ( fe != NULL );
-            if (exists)
-                fclose(fe);
-        }
+void checkSignal( int signal )
+{
+    char spc[3] = "";
+    if (strlen(msgError))
+        strcpy( spc, " " );
+    switch (signal)
+    {
+        case SIGHUP:
+            sprintf( msgError, "%suser's terminal is disconnected.", spc );
+            break;
+        case SIGABRT:
+            sprintf( msgError, "%sabort called.", spc );
+            break;
+        case SIGSEGV:
+            sprintf( msgError, "%ssegmentation violation.", spc );
+            break;
+        case SIGSTKFLT:
+            sprintf( msgError, "%sstack fault.", spc );
+            break;
+        case SIGBUS:
+            sprintf( msgError, "%saccess to an invalid address.", spc );
+            break;
+        case SIGFPE:
+            sprintf( msgError, "%sfloating point exception.", spc );
+            break;
+        case SIGILL:
+            sprintf( msgError, "%sillegal instruction (usually a corrupted executable).", spc );
+            break;
+        case SIGSYS:
+            sprintf( msgError, "%sbad system call.", spc );
+            break;
+        case SIGXFSZ:
+            sprintf( msgError, "%sfile size limit exceeded.", spc );
+            break;
+        case SIGXCPU:
+            sprintf( msgError, "%sCPU limit exceeded.", spc );
+            break;
+        case SIGPIPE:
+            sprintf( msgError, "%sbroken pipe.", spc );
+            break;
+    }
+}
 
-        FILE *f = fopen("summary.csv", "a");
-        if (!exists)
-            fprintf( f, "instance,nImpl,time,madeInf,obj1,obj2\n" );
+void exitPP( int sig )
+{
+    FILE *flog = NULL;
+    
+    checkSignal( sig );
 
-        fprintf( f, "%s,%d,%.4f,%d,%g,%g\n", probName, nImpl, cpsecs, madeInf, obj, obj2 );
+    // checking if this is the first line
+    flog = fopen( "summary.csv", "r" );
+    char firstLine = (flog == NULL);
+    if (!firstLine)
+    {
+        fclose( flog );
+        flog = NULL;
+    }
+    
+    flog = fopen( "summary.csv", "a" );
+    assert( flog );
 
-        fclose(f);
-    } 
-END:
-    cprop_free( &cprop );
-    lp_free( &mip );
+    if (firstLine)    //    1     2    3   4      5          6       7     8          9        10      11     12    13       14        15        16       17
+        fprintf( flog, "instance,cols,rows,nz,feasibleLP,secLPOpt,objLP,cpropFeas,cpropTime,ppLPTime,ppCols,ppRows,ppNZ,ppLPOptTime,ppLPObj,ppLPFeasible,error\n" );
+                 //  1  2  3  4  5  6    7  8  9    10  11 12 13  14  15 16 18 
+    fprintf( flog, "%s,%d,%d,%d,%d,%.4f,%g,%d,%.4f,%.4f,%d,%d,%d,%.4f,%g,%d,\"%s\"\n", 
+      //   1        2     3    4       5         6        7         8           9       10      11      12     13      14        15           16          17
+        probName, cols, rows, nz, feasibleLP, seclpopt, objlp, feasibleCPROP, cpsecs, ppsecs, ppcols, pprows, ppnz, secpplpopt, objpplp, feasiblePPLP, msgError );
 
+    
+    fclose(flog);
+
+    if (mip)
+        lp_free( &mip );
+    if (cprop)
+        cprop_free( &cprop );
+    if (ppmip)
+    {
+        lp_write_lp( ppmip, "pp.lp" );
+        lp_free( &ppmip );
+    }
+    if (origCols)
+        free( origCols );    
+    
+    exit( (strlen(msgError)) ? EXIT_FAILURE : EXIT_SUCCESS );
 }
 

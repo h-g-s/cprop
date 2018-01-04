@@ -2,13 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 #include "cprop.h"
 #include "memory.h"
 #include "macros.h"
 #include "containers.h" 
 
 
-// large values, summation does not gives an overflow
+// large values, but not too large so that their summation produces an overflow
 const double oo  = 1e23;
 #define VEPS  1e-10
 #define FIXED( lb, ub ) ( ub-lb <= VEPS )
@@ -112,7 +113,6 @@ void cprop_report_infeasible_constraint( CProp *cprop, int irow, double minLhs )
 #define MAX_VAR_ROW_PRINT 6
 
 void cprop_add_row_name( CProp *cprop, const char rname[] );
-const char *cprop_row_name( const CProp *cprop, int i );
 void cprop_add_arc_impl_g( CProp *cprop, enum IGNType ntSource, int colSource, enum IGNType ntDest, int colDest );
 void cprop_add_msg_inf( CProp *cprop, const char *msg );
 /* trimmed description of constraint to show in messages */
@@ -1627,6 +1627,34 @@ const char *cprop_fixed_at_pre_proc( const CProp *cprop )
 {
     return cprop->fixedAtPP;
 }
+
+char cprop_is_equality( const CProp *cprop, int irow )
+{
+    if (irow >= cprop_n_rows(cprop)-1)
+        return 0;
+        
+    int nz = cprop_nz(cprop,irow);
+    if (nz != cprop_nz(cprop,irow+1))
+        return 0;
+
+    if ( fabs(cprop_rhs(cprop,irow) - (-1.0*cprop_rhs(cprop,irow+1)))>=1e-15 ) 
+        return 0;
+        
+    const int *idx = cprop_idx( cprop, irow );
+    const int *idxn = cprop_idx( cprop, irow+1 );
+    for ( int i=0 ; (i<nz) ; ++i )
+        if (idx[i]!=idxn[i])
+            return 0;
+
+    const double *coef = cprop_coef( cprop, irow );
+    const double *coefn = cprop_coef( cprop, irow+1 );
+    for ( int i=0 ; (i<nz) ; ++i )
+        if ( fabs(coef[i]-(-1.0*coefn[i]))>=1e-15 )
+            return 0;
+    
+    return 1;
+}
+
 
 
 void cprop_free( CProp **cprop )
