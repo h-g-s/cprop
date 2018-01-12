@@ -52,7 +52,7 @@ int main( int argc, char **argv )
     cols = lp_cols( mip );
     rows = lp_rows( mip );
     nz = lp_nz( mip );
-    printf("Read in %.4f seconds\n", secread );
+    printf("\n%s Read in %.4f seconds\n", probName, secread );
     printf("Original MIP has dimensions %d/%d/%d (cols/rows/nz)\n", cols, rows, nz );
 
     int status;
@@ -180,6 +180,7 @@ void checkSignal( int signal )
             sprintf( msgError, "%sbroken pipe.", spc );
             break;
     }
+
 }
 
 void exitPP( int sig )
@@ -187,6 +188,14 @@ void exitPP( int sig )
     FILE *flog = NULL;
     
     checkSignal( sig );
+
+    if (strlen(msgError))
+    {
+        fflush( stdout );  fflush( stderr ); 
+        fprintf( stderr, "\n\nERROR: %s\n\n", msgError );
+        fflush( stderr ); 
+    }
+
 
     // checking if this is the first line
     flog = fopen( "summary.csv", "r" );
@@ -222,6 +231,6 @@ void exitPP( int sig )
     if (origCols)
         free( origCols );    
     
-    exit( (strlen(msgError)) ? EXIT_FAILURE : EXIT_SUCCESS );
+    exit( strlen( msgError ) ? EXIT_FAILURE : EXIT_SUCCESS );
 }
 

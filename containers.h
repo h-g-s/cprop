@@ -223,7 +223,7 @@ void vec_##type##_push_back( Vec_##type *vec, const type value ) { \
    vec->size++; \
 } \
 void vec_##type##_push_back_v( Vec_##type *vec, int n, const type v[] ) { \
-   if ( vec->size+n >= vec->capacity ) { \
+   if ( vec->size+n > vec->capacity ) { \
       vec->capacity = MAX( vec->capacity*2, vec->size+n+8 ); \
       type *p =(type *) realloc( vec->array, sizeof(type)*vec->capacity ); \
       if (!p) { \

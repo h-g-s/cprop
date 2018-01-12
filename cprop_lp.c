@@ -78,7 +78,7 @@ LinearProgram *cprop_preprocess( const CProp *cprop, LinearProgram *mip, char re
             ++nFixed;
 
     if (nFixed==0)
-        return NULL;
+        return lp_clone(mip);
 
     LinearProgram *rmip = lp_create();
 
@@ -149,6 +149,13 @@ LinearProgram *cprop_preprocess( const CProp *cprop, LinearProgram *mip, char re
     int *idx; ALLOCATE_VECTOR( idx, int, lp_cols(rmip) );
     double *coef; ALLOCATE_VECTOR( coef, double, lp_cols(rmip) );
 
+    Vec_int *vidx = vec_int_create_cap( lp_nz(mip) );
+    Vec_double *vcoef = vec_double_create_cap( lp_nz(mip) );
+    Vec_int *vstarts = vec_int_create_cap( lp_rows(mip)*2+2 );
+    Vec_double *vrhs = vec_double_create_cap( lp_rows(mip)*2 );
+    Vec_char *vsense = vec_char_create_cap( lp_rows(mip)*2 );
+    StrV *rnames = strv_create(256);
+
     for ( int i=0 ; (i<cprop_n_rows(cprop)) ; ++i )
     {
         const int *cpidx = cprop_idx( cprop, i );
@@ -163,11 +170,20 @@ LinearProgram *cprop_preprocess( const CProp *cprop, LinearProgram *mip, char re
         {
             char rname[256]; 
             strcpy( rname, cprop_row_name( cprop, i )  );
-            lp_add_row( rmip, nz, idx, coef, rname, 'E', rhs );
+
+            vec_int_push_back( vstarts, vec_int_size(vidx) );
+            vec_int_push_back_v( vidx, cprop_nz(cprop,i), idx );
+            vec_double_push_back_v( vcoef, cprop_nz(cprop,i), coef );
+            vec_double_push_back( vrhs, rhs );
+            vec_char_push_back( vsense, 'E' );
+            strv_push_back( rnames, rname );
             ++i;
         }
         else
         {
+            char rname[256]; 
+            strcpy( rname, cprop_row_name( cprop, i )  );
+
             char sense = 'L';
             int nneg = 0;
             for ( int j=0 ; (j<nz) ; ++j )
@@ -181,10 +197,27 @@ LinearProgram *cprop_preprocess( const CProp *cprop, LinearProgram *mip, char re
                     coef[j] *= -1.0;
             }
 
-            lp_add_row( rmip, nz, idx, coef, cprop_row_name( cprop,i ), sense, rhs );
+            vec_int_push_back( vstarts, vec_int_size(vidx) );
+            vec_int_push_back_v( vidx, cprop_nz(cprop,i), idx );
+            vec_double_push_back_v( vcoef, cprop_nz(cprop,i), coef );
+            vec_double_push_back( vrhs, rhs );
+            vec_char_push_back( vsense, sense );
+            strv_push_back( rnames, rname );
         }
     }
-
+    vec_int_push_back( vstarts, vec_int_size(vidx) );
+    
+    lp_add_rows( rmip, vec_char_size(vsense), vec_int_ptr(vstarts), \
+        vec_int_ptr(vidx), vec_double_ptr(vcoef), vec_char_ptr(vsense), \
+        vec_double_ptr(vrhs), (const char **)strv_ptr(rnames) );
+    
+    vec_int_free( &vidx );
+    vec_double_free( &vcoef );
+    vec_int_free( &vstarts );
+    vec_double_free( &vrhs );
+    vec_char_free( &vsense );
+    strv_free( &rnames );
+    
     free( idx );
     free( coef );
     free( lb );

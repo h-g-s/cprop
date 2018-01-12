@@ -76,6 +76,7 @@ void lp_fix_mipstart( LinearProgram *lp );
 LinearProgram *lp_create();
 LinearProgram *lp_clone( LinearProgram *lp );
 void lp_add_row( LinearProgram *lp, const int nz, int *indexes, double *coefs, const char *name, char sense, const double rhs );
+void lp_add_rows( LinearProgram *lp, int nRows, int *starts, int *idx, double *coef, char *sense, double *rhs, const char **name );
 void lp_remove_row( LinearProgram *lp, int idxRow );
 void lp_remove_rows( LinearProgram *lp, int nRows, int *rows );
 
