@@ -1,4 +1,4 @@
-for file in ~/inst/bpconf/lp/*.lp;
+for file in ~/inst/cbcbench/*.mps.gz;
 do
     ./preprocess $file
 done
