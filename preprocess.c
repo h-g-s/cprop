@@ -79,6 +79,12 @@ int main( int argc, char **argv )
 
     feasibleCPROP = cprop_feasible( cprop );
 
+    if (!feasibleCPROP)
+    {
+        printf("Problem is infeasible.\n\t%s\n", cprop_inf_msg(cprop) );
+        exitPP(0);
+    }
+
     if (!cprop)
     {
         strcpy( msgError, "Could not create CPROP.\n" );

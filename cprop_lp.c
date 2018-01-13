@@ -42,7 +42,7 @@ CProp *cprop_create_from_mip( LinearProgram *mip, char verbose )
     {
         int nz = lp_row( mip, i, idx, coef );
         char rname[256];
-        cprop_add_constraint( cprop, nz, idx, coef, lp_sense(mip,i), lp_rhs(mip,i), lp_row_name(mip, i, rname) );
+        int res = cprop_add_constraint( cprop, nz, idx, coef, lp_sense(mip,i), lp_rhs(mip,i), lp_row_name(mip, i, rname) );
         if (!cprop_feasible(cprop))
         {
             if (verbose)
@@ -54,6 +54,7 @@ CProp *cprop_create_from_mip( LinearProgram *mip, char verbose )
             }
             goto END;
         }
+        assert( res >= 0 );
     }
 
     cprop_conclude_pre_processing( cprop );    

@@ -432,7 +432,7 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
 
 void cprop_report_infeasible_constraint( CProp *cprop, int irow, double minLhs )
 {
-    char strRDes[256];
+    char strRDes[512];
     cprop_constraint_descr( cprop, irow, strRDes );
     char msg[1024];
     double rhs = cprop_rhs( cprop, irow );
@@ -504,7 +504,10 @@ int cprop_process_constraint( CProp *cprop, int irow )
             lhs += ub[idx[j]]*coef[j];
 
         if ( lhs >= rhs+VEPS )
+        {
             cprop_report_infeasible_constraint( cprop, irow, lhs );
+            return -1;
+        }
     }
 
     switch ( vec_char_get(cprop->vrtype, irow) )
@@ -1505,7 +1508,14 @@ PROCESS_CONSTRAINTS:
 
     /* processing constraints to check for additional implications */
     for ( int i=0 ; (i<vec_int_size(constr)) ; ++i )
-        cprop_process_constraint( cprop, vec_int_get(constr,i) );
+    {
+        int res = cprop_process_constraint( cprop, vec_int_get(constr,i) );
+        if (res==-1)
+        {
+            cprop->feasible = 0;
+            goto END;
+        }
+    }
 
     /* clearing constraint set */
     if (newImpl)
@@ -1594,6 +1604,7 @@ PROCESS_CONSTRAINTS:
         cprop->vrrhs = vrrhs;
         cprop->vrcoef = vrcoef;
     }
+END:
     
     free( ivc );
     vec_int_free( &constr );
