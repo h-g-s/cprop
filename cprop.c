@@ -2184,25 +2184,23 @@ int cprop_probe( CProp *cprop, int var, int value )
     double oldub = cprop_get_ub( cprop, var );
     assert( oldub - oldlb > 0.00001 );
 
-    printf("Diving %s=%d ... ", cprop->cname[var], value );
+    printf("Probing %s=%d ... ", cprop->cname[var], value );
 
     if ( value == 0 )
         cprop->probe[var] |= 2;
     else
         cprop->probe[var] |= 4;
 
-    int res = cprop_update_bound( cprop, var, value, value );
-
-    const CPCuts *cpCuts = cprop_cut_pool( cprop );
-
+    CPCuts *cpCuts = cprop->cpcuts;
     int nCuts = cpc_n_cuts( cpCuts );
+
+    int res = cprop_update_bound( cprop, var, value, value );
 
     switch (res) 
     {
         case -1 :
         {
             printf("infeasible, ");
-            cprop_generate_cuts_inf( cprop );
             break;
         }
         case 0 :
@@ -2213,7 +2211,7 @@ int cprop_probe( CProp *cprop, int var, int value )
         default :
         {
             printf("%d implications, ", res);
-            cprop_generate_cuts_impl( cprop );
+            cprop_generate_cuts_impl( cprop );            
             break;
         }
     }
