@@ -1998,8 +1998,7 @@ VISIT_NODES:
         for ( int j=0 ; (j<nToVisit) ; ++j )
         {
             int node = toVisit[j];
-            visited[node] = True;
-            visnode[nVisNodes++] = node;
+            
 
             /* checking reachable nodes */
             for ( int k=0 ; (k<cprop_impl_graph_out_d(cprop,node)) ; ++k )
@@ -2009,6 +2008,10 @@ VISIT_NODES:
                 {
                     newNodes[nNewNodes++] = outNode;
                     implications[nImplications++] = outNode;
+                    
+                    visited[outNode] = True;
+                    assert( nVisNodes<sizeImplG );
+                    visnode[nVisNodes++] = outNode;
                 }
 
                 if (ivd[outNode]==False)
@@ -2032,6 +2035,7 @@ VISIT_NODES:
         /* clearing incidence vector for the next iteration */
         for ( int j=0 ; (j<nVisNodes) ; ++j )
             visited[visnode[j]] = False;
+        nVisNodes = 0;
 
         /* going back to original degree */
         for( int j=0 ; (j<nChDegree) ; ++j )
