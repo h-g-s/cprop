@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
@@ -5,6 +6,7 @@
 #include "cp_cuts.h"
 #include "containers.h"
 #include "memory.h"
+
 
 struct _CPCuts
 {
@@ -51,8 +53,64 @@ int cpc_n_cuts( const CPCuts *cp )
     return vec_int_size( cp->cutStart );
 }
 
-char cpc_add_cut( CPCuts *cp, int nz, const int idx[], const double coef[], double rhs )
+struct CutNZs
 {
+    int idx;
+    double coef;
+};
+
+static int cmp_cutnz( const void *v1, const void *v2, void *extra )
+{
+    const struct CutNZs *cnz1 = (const struct CutNZs *) v1;
+    const struct CutNZs *cnz2 = (const struct CutNZs *) v2;
+
+    return cnz2->idx - cnz1->idx;
+}
+
+char cpc_add_cut( CPCuts *cp, int nz, const int _idx[], const double _coef[], double rhs )
+{
+    int *sidx = NULL;
+    double *scoef = NULL;
+    struct CutNZs *scutnz = NULL;
+
+    char addedCut = 0;
+
+    /* checking if cut indexes are sorted */
+    char sorted = True;
+    for ( int i=0 ; (i<nz-1) ; ++i )
+    {
+        if ( _idx[i+1] < _idx[i] )
+        {
+            sorted = False;
+            break;
+        }
+    }
+
+    if (!sorted)
+    {
+        ALLOCATE_VECTOR( scutnz, struct CutNZs, nz );
+
+        for ( int i=0 ; (i<nz) ; ++i )
+        {
+            scutnz[i].idx = _idx[i];
+            scutnz[i].coef = _coef[i];
+        }
+
+        qsort_r( scutnz, nz, sizeof(struct CutNZs), cmp_cutnz, NULL );
+
+        ALLOCATE_VECTOR( sidx, int, nz );
+        ALLOCATE_VECTOR( scoef, double, nz );
+
+        for ( int i=0 ; (i<nz) ; ++i )
+            sidx[i] = scutnz[i].idx;
+
+        for ( int i=0 ; (i<nz) ; ++i )
+            scoef[i] = scutnz[i].coef;
+    }
+
+    const int *idx = sorted ? _idx : sidx;
+    const double *coef =  sorted ? _coef : scoef;
+
     int cutBucket = cutHash( nz, idx ) % cp->hashSize;
 
     if (cp->cutsBucket[cutBucket] == NULL)
@@ -90,7 +148,8 @@ char cpc_add_cut( CPCuts *cp, int nz, const int idx[], const double coef[], doub
                 }
 
             /* arrived here, exactly equal to another cut */
-            return 0;
+            addedCut = 0;
+            goto RETURN_POINT;
 
 CHECK_NEXT_CUT_BUCKET:
             ++ic;
@@ -109,7 +168,18 @@ CHECK_NEXT_CUT_BUCKET:
     for ( int i=0 ; (i<nz) ; ++i )
         vec_double_push_back( cp->cutCoef, coef[i] );
 
-    return 1;
+    addedCut = 1;
+
+RETURN_POINT:
+
+    if (sidx)
+    {
+        free( sidx );
+        free( scoef );
+        free( scutnz );
+    }
+
+    return addedCut;
 }
 
 static unsigned int cutHash( int nz, const int idx[] )

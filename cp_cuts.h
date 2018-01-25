@@ -35,7 +35,7 @@ int cpc_n_cuts( const CPCuts *cp );
  * @param rhs right hand side constant
  * @return returns 1 if the cut was added, 0 otherwise
  */
-char cpc_add_cut( CPCuts *cp, int nz, const int idx[], const double coef[], double rhs );
+char cpc_add_cut( CPCuts *cp, int nz, const int _idx[], const double _coef[], double rhs );
 
 /** @brief Returns the number of non-zeros in cut idxCut
  *

@@ -1,4 +1,7 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
+#include <math.h>
 #include <string.h>
 #include <float.h>
 #include <time.h>
@@ -12,6 +15,8 @@
 #include "containers.h"
 #include "strutils.h"
 #include "cprop_lp.h"
+#include "cp_cuts.h"
+
 
 
 void conectSignals();
@@ -29,8 +34,27 @@ int cols = 0, rows = 0, nz = 0;
 int ppcols = 0, pprows = 0, ppnz = 0;
 int *origCols = NULL;
 
+int totalCutsPC = 0; // cut in probe and cut
+double objPC = DBL_MAX;
+double secsPC = 0.0;
+int roundsPC = 0;
+
+char probeAndCut = False;
+char probCOnlyFrac = True;
+int probCMaxTries = INT_MAX;
+enum DVDir probCDir = DVDBoth;
+
 #define EXEC_AND_STORE_TIME( code, seconds ) ( { clock_t start = clock(); code; clock_t end = clock(); seconds = ( ((double)end-start)/((double)CLOCKS_PER_SEC) ); } )
 
+/* parameters */
+char printSol = 0;
+
+#define MAX_DIVE_DEPT 5
+char diveVar[MAX_DIVE_DEPT][256];
+int diveVal[MAX_DIVE_DEPT];
+int nVarsToDive = 0;
+
+void parseParameters( int argc, const char **argv );
 
 int main( int argc, char **argv )
 {
@@ -41,6 +65,12 @@ int main( int argc, char **argv )
     }
 
     getFileName( probName, argv[1] );
+    for ( int i=0 ; (i<MAX_DIVE_DEPT) ; ++i )
+    {
+        strcpy( diveVar[i], "" );
+        diveVal[i] = 1;
+    }
+    parseParameters( argc, (const char**) argv );
     
     /* now, setting a function to handle errors */
     conectSignals();
@@ -76,7 +106,7 @@ int main( int argc, char **argv )
     } 
         
     EXEC_AND_STORE_TIME( cprop = cprop_create_from_mip( mip, 0 ), cpsecs );    
-
+    
     feasibleCPROP = cprop_feasible( cprop );
 
     if (!feasibleCPROP)
@@ -84,6 +114,9 @@ int main( int argc, char **argv )
         printf("Problem is infeasible.\n\t%s\n", cprop_inf_msg(cprop) );
         exitPP(0);
     }
+    else
+        cprop_enter_relax_sol( cprop, lp_x(mip) );
+
 
     if (!cprop)
     {
@@ -91,7 +124,114 @@ int main( int argc, char **argv )
         abort();
     }
 
-    printf("CPROP preprocessing took %.4f seconds.\n", cpsecs );
+    printf("CPROP preprocessing took %.4f seconds. Fixed %d columns\n", cpsecs, cprop_n_fixed_at_pre_proc(cprop) );
+    
+    if ( cprop_n_fixed_at_pre_proc(cprop) )
+    {
+        const char *fixed = cprop_fixed_at_pre_proc( cprop );
+        for ( int i=0 ; (i<lp_cols(mip)) ; ++i )
+        {
+            if (!fixed[i])
+                continue;
+
+            lp_set_col_bounds( mip, i, cprop_get_lb(cprop,i), cprop_get_lb(cprop,i) );
+        }
+        int status = lp_optimize_as_continuous( mip );
+        assert( status == LP_OPTIMAL );
+        cprop_enter_relax_sol( cprop, lp_x(mip) );
+
+        if (printSol)
+        {
+            //printf()
+            const double *x = lp_x( mip );
+            for ( int i=0 ; (i<lp_cols(mip)) ; ++i )
+            {
+                if (fabs(x[i])<1e-10)
+                    continue;
+
+                char cName[256];
+                printf("%40s %g\n", lp_col_name( mip, i, cName ), x[i] );
+            } // all variables
+        } // print pp sol
+        
+        if (nVarsToDive)
+        {
+            printf("\nDiving:\n");
+            // checking if diving in some variable should be performed
+            for ( int i=0 ; (i<nVarsToDive) ; ++i )
+            {
+                int idxvtd = lp_col_index( mip, diveVar[i] );
+                char cName[256]; 
+                assert( strcmp( diveVar[i], lp_col_name( mip, idxvtd, cName ) ) == 0 );
+                
+                int idxorigvar = lp_col_index( mip, diveVar[i] );
+                int res = cprop_update_bound( cprop, idxorigvar, diveVal[i], diveVal[i] );
+                printf("\t%s=%d ... ", cName, diveVal[i] );
+                switch (res)
+                {
+                    case -1:
+                    {
+                        const CPCuts *cp = cprop_cut_pool( cprop );
+                        /* printing */
+                        printf(" infeasible. %d cuts implied.\n", cpc_n_cuts(cp) );
+                        cprop_save_impl_graph( cprop, "impl.dot" );
+                        for ( int ic=0 ; (ic<cpc_n_cuts(cp)) ; ++ic )
+                        {
+                            double lhs = 0;
+                            int nz = cpc_nz( cp, ic );
+                            const int *idx = cpc_idx( cp, ic );
+                            const double *coef = cpc_coef( cp, ic );
+                            for ( int ii=0 ; (ii<nz) ; ++ii )
+                                lhs += coef[ii] * lp_x(mip)[idx[ii]];
+
+                            if ( lhs - cpc_rhs(cp,ic) < 1e-10 )
+                                continue;
+                            printf("\t");
+                            for ( int ii=0 ; (ii<nz) ; ++ii )
+                            {
+                                printf("%+g %s ", coef[ii], lp_col_name(mip, idx[ii], cName) );                                
+                            }
+                            printf("<= %+g (viol: %g)\n", cpc_rhs( cp, ic ), lhs - cpc_rhs(cp,ic) );
+                            
+                            static int iCut = 0; char cutName[256]; sprintf( cutName, "cut%d", iCut++ );
+                            lp_add_row( mip, nz, (int*) idx, (double*) coef,  cutName, 'L', cpc_rhs(cp,ic) );
+                        }
+                        
+                        if (cpc_n_cuts(cp))
+                        {
+                            int status = lp_optimize_as_continuous( mip );
+                            assert( status == LP_OPTIMAL );
+                            printf("After cuts obj is %g\n", lp_obj_value(mip) );
+                            lp_write_lp( mip, "cuts.lp");
+                        }
+
+                        break;
+                    }                
+                    case 0:
+                    {
+                        printf("no implications.\n");
+                        break;
+                    }
+                    default:
+                    {
+                        printf("%d implications.\n\t", cprop_n_implications(cprop) );
+                        assert( cprop_n_implications(cprop)>=1 );
+                        assert( res==cprop_n_implications(cprop) );
+                        for ( int j=0 ; (j<cprop_n_implications(cprop)) ; ++j )
+                        {
+                            int origIdx = cprop_implied_var(cprop,j);
+                            lp_col_name( mip, origIdx, cName );
+                            printf("%s=%d ", cName, (int)cprop_get_lb(cprop, origIdx) );
+                        }
+                        if (cprop_n_implications(cprop))
+                            printf("\n");
+                    }
+                }
+            }
+        } // if diving should be performed 
+
+        cprop_clear( cprop );
+    }
     
     ALLOCATE_VECTOR( origCols, int, cols );
     
@@ -119,6 +259,103 @@ int main( int argc, char **argv )
         feasiblePPLP = 1;
         objpplp = lp_obj_value( ppmip );
         printf("Initial LP relaxation of Pre-Processed problem solved in %.4f seconds, obj is %g\n", secpplpopt, lp_obj_value(ppmip) );
+
+    }
+
+    if (probeAndCut)
+    {
+        clock_t startpc = clock();
+TRY_TO_CUT:
+        {
+            const CPCuts *cpCuts = cprop_cut_pool( cprop );
+            int nCuts = cpc_n_cuts( cpCuts );
+            printf("Starting Probe and Cut, round %d\n", ++roundsPC );
+            int newCuts = cprop_probe_and_cut( cprop, lp_x(mip), probCMaxTries, DVCMostFrac, probCOnlyFrac, probCDir  );
+            printf("%d new cuts found.\n", newCuts );
+
+            // new cuts
+            for ( int i=nCuts ; (i<newCuts) ; ++i )
+            {
+                int nz = cpc_nz( cpCuts, i );
+                int *idx = cpc_idx( cpCuts, i );
+                double *coef = cpc_coef( cpCuts, i );
+                double rhs = cpc_rhs( cpCuts, i );
+                char cutName[256]=""; static int cutId = 0;
+                sprintf( cutName, "cut%08d", cutId++ ); 
+                lp_add_row( mip, nz, idx, coef, cutName, 'L', rhs );
+            }
+
+
+
+            if (newCuts>nCuts)
+            {
+                totalCutsPC += newCuts-nCuts;
+                int status = lp_optimize_as_continuous( mip );
+                assert( status == LP_OPTIMAL );
+                if ( status == LP_OPTIMAL )
+                {
+                    objPC = lp_obj_value( mip );
+                    goto TRY_TO_CUT;
+                }
+                else
+                {
+                    objPC = DBL_MAX;
+                }
+            }
+        }
+
+        secsPC = ( (double) clock()-startpc ) / ((double)CLOCKS_PER_SEC);
+    }
+
+    // dive propagate and cut
+    if (feasiblePPLP)
+    {
+        /*
+        printf("diving into fractional solution\n");
+        double *x = lp_x(ppmip);
+        Vec_IntPair *vip = vec_IntPair_create();
+
+        for ( int i=0 ; (i<lp_cols(ppmip)) ; ++i )
+        {
+            double intdist = MIN( ceilf(x[i])-x[i], x[i]-floor(x[i]) );
+            IntPair ip = { i, (int)(intdist*100.0) };
+            vec_IntPair_push_back( vip, ip );
+        }
+
+        vec_IntPair_sort( vip );
+
+
+        for ( int i=0 ; (i<lp_cols(ppmip)) ; ++i )
+        {
+            char cname[256];
+            int col = vec_IntPair_get( vip, lp_cols(ppmip)-i-1 ).a;
+            int v = floor( x[col]+0.5 );
+            lp_col_name( ppmip, col, cname );
+
+            printf("fixing %s = %d  (%g) ... ", cname, v, x[col] );
+
+            int idxOrig = lp_col_index( mip, cname );
+
+            if (cprop_fixed(cprop, idxOrig))
+            {
+                printf("already fixed\n");
+            }
+            else
+            {
+                int res = cprop_update_bound( cprop, idxOrig, v, v );
+                if ( res == -1 )
+                {
+                    const CPCuts *cp = cprop_cut_pool( cprop );
+                    printf(" infeasible. %d cuts implied.\n", cpc_n_cuts(cp) );
+                    break;
+                }
+                else
+                    printf("%d implications.\n", cprop_n_implications(cprop) );
+            }
+
+        }
+
+        vec_IntPair_free(&vip); */
     }
     
     exitPP( 0 );
@@ -216,11 +453,11 @@ void exitPP( int sig )
     assert( flog );
 
     if (firstLine)    //    1     2    3   4      5          6       7     8          9        10      11     12    13       14        15        16       17
-        fprintf( flog, "instance,cols,rows,nz,feasibleLP,secLPOpt,objLP,cpropFeas,cpropTime,ppLPTime,ppCols,ppRows,ppNZ,ppLPOptTime,ppLPObj,ppLPFeasible,error\n" );
+        fprintf( flog, "instance,cols,rows,nz,feasibleLP,secLPOpt,objLP,cpropFeas,cpropTime,ppLPTime,ppCols,ppRows,ppNZ,ppLPOptTime,ppLPObj,ppLPFeasible,roundspc,cutspc,secspc,objpc,error\n" );
                  //  1  2  3  4  5  6    7  8  9    10  11 12 13  14  15 16 18 
-    fprintf( flog, "%s,%d,%d,%d,%d,%.4f,%g,%d,%.4f,%.4f,%d,%d,%d,%.4f,%g,%d,\"%s\"\n", 
+    fprintf( flog, "%s,%d,%d,%d,%d,%.4f,%g,%d,%.4f,%.4f,%d,%d,%d,%.4f,%g,%d,%d,%d,%.2f,%g,\"%s\"\n", 
       //   1        2     3    4       5         6        7         8           9       10      11      12     13      14        15           16          17
-        probName, cols, rows, nz, feasibleLP, seclpopt, objlp, feasibleCPROP, cpsecs, ppsecs, ppcols, pprows, ppnz, secpplpopt, objpplp, feasiblePPLP, msgError );
+        probName, cols, rows, nz, feasibleLP, seclpopt, objlp, feasibleCPROP, cpsecs, ppsecs, ppcols, pprows, ppnz, secpplpopt, objpplp, feasiblePPLP, roundsPC, totalCutsPC, secsPC, objPC, msgError );
 
     
     fclose(flog);
@@ -238,5 +475,38 @@ void exitPP( int sig )
         free( origCols );    
     
     exit( strlen( msgError ) ? EXIT_FAILURE : EXIT_SUCCESS );
+}
+
+void parseParameters( int argc, const char **argv )
+{
+    for ( int i=1 ; (i<argc) ; ++i )
+    {
+        if (strlen(argv[i])<=1)
+            continue;
+        if (argv[i][0]=='-')
+        {
+            const char *param = &argv[i][1];
+            if (strcasestr( param, "printSol" ))
+            {
+                printSol = 1;
+                continue;
+            }
+            
+            if (strcasestr(param, "diveV"))
+            {
+                assert( i+1<argc );
+                strcpy( diveVar[nVarsToDive++], argv[i+1] );
+                ++i;                
+                continue;
+            }
+
+            if (strcasestr(param, "probeAndCut"))
+            {
+                probeAndCut = True;
+                continue;
+            }
+                
+        } // flags
+    } // all parameters
 }
 

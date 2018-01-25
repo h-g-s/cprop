@@ -67,6 +67,13 @@ int cprop_add_constraint( CProp *cprop, int nz, const int idx[], const double co
 int cprop_n_rows( const CProp *cprop );
 
 
+/** @brief number of columns (variables) in cprop
+ *
+ *  @param CProp constraint propagation object
+ **/
+int cprop_n_cols( const CProp *cprop );
+
+
 /** @brief number of non-zeros in constraint irow
  *
  *  @param CProp constraint propagation object
@@ -110,6 +117,13 @@ void cprop_conclude_pre_processing( CProp *cprop );
  * 
  */
 const char *cprop_fixed_at_pre_proc( const CProp *cprop );
+
+
+/** @brief returns how many variables were fixed at the pre-processing
+ * 
+ */
+int cprop_n_fixed_at_pre_proc( const CProp *cprop );
+
 
 
 /** @brief updates the bounds of a variable
@@ -189,6 +203,14 @@ double cprop_get_lb( const CProp *cprop, int j );
  * */
 double cprop_get_ub( const CProp *cprop, int j );
 
+
+/** @brief checks if variable j is fixed or not
+ * 
+ * @param cprop constraint propagation object
+ * @param j index of variable
+ */
+char cprop_fixed( const CProp *cprop,  int j );
+
 /// Implication Graph Node Types
 enum IGNType { 
     EOne,      /*!< variable fixed at one */
@@ -249,6 +271,27 @@ int cprop_impl_graph_in_d( const CProp *cprop, int nodeId );
 int cprop_impl_graph_in_neigh( const CProp *cprop, int nodeId, int i );
 
 
+/** @brief number of outbount arcs in implication graph node
+ *
+ * Returns the number of outbond arcs in the implication graph for a node with id nodeId
+ * col is ignored if a node of type Infeasible is informed 
+ *
+ * @param cprop Constraint Propagation Object
+ * @param nodeId nodeId
+ **/
+int cprop_impl_graph_out_d( const CProp *cprop, int nodeId );
+
+
+/** @brief returns the destination of the i-th outbound arc to nodeId
+ *
+ * Returns the nodeId of the destination of the i-th outbound arc in node nodeId
+ *
+ * @param cprop Constraint Propagation Object
+ * @param nodeid nodeId
+ **/
+int cprop_impl_graph_out_neigh( const CProp *cprop, int nodeId, int i );
+
+
 /** @brief saves the implication graph in the DOT file format (graphviz)
  *
  * @param cprop constraint propagation object
@@ -270,6 +313,42 @@ void cprop_save_impl_graph( const CProp *cprop, const char *fName );
 void cprop_set_verbose( CProp *cprop, char verbose );
 
 
+/// Diving strategy
+enum DVCStrat { 
+    DVCMostFrac,      /*!< starts from the most fractional variables */
+    DVCRandom         /*!< randomized diving */
+};
+
+/// Diving direction
+enum DVDir {
+    DVDClosestInteger,    /*!< closest integer */
+    DVDBoth               /*!< both */
+};
+
+
+/* @brief enters fractional solution information. whith this information only violated cuts are stored
+ *  
+ * @param cprop Constraint Propagation Object
+ **/
+void cprop_enter_relax_sol( CProp *cprop, const double x[] );
+
+
+/* @brief checks the effect of fixing a variable in a value, generating violated cuts if possible
+ * @param cprop Constraint Propagation Object
+ * @param var variable index
+ * @param value value which variable will be temporaly fixed
+ * @return number of new violated cuts found
+ **/
+int cprop_probe( CProp *cprop, int var, int value );
+
+
+/* @brief probes the influence of fixing variables in zero or one, trying to generate cuts
+ *  
+ * @param cprop Constraint Propagation Object
+ **/
+int cprop_probe_and_cut( CProp *cprop, const double x[], int maxTries, enum DVCStrat dvstrat, char onlyFrac, enum DVDir direction );
+
+
 /** @brief returns the cut pool with all cuts discovered so far
  *
  * @param cprop Constraint Propagation Object
@@ -288,14 +367,6 @@ char cprop_equals( const CProp *cprop1, const CProp *cprop2 );
  **/
 void cprop_clear( CProp *cprop );
 
-
-/** @brief returns the number of non zeros in constraint irow
- * @param cprop Constraint Propagation Object
- * @return number of rows
- * @param irow row index
- * @return 1 if row is part of an equality, 0 otherwise
- */
-int cprop_n_rows( const CProp *cprop );
 
 
 /** @brief returns the name of row 0
