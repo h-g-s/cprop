@@ -1733,7 +1733,7 @@ PROCESS_CONSTRAINTS:
         {
             int nzRow = 0;
             double rhs = cprop_rhs( cprop, i );
-            enum ConstraintType rtype = vec_char_get( cprop->vrtype, i );
+            char rtype = vec_char_get( cprop->vrtype, i );
             char hasBinary = 0;
             for ( int j=0 ; (j<cprop_nz(cprop,i)) ; ++j )
             {
