@@ -114,6 +114,44 @@ struct _CProp
 
 };
 
+enum ConstraintType get_constraint_type( const CProp *cprop, int nz, const int idx[] )
+{
+    const char *integer = cprop->integer;
+    const double *lb = cprop->lb;
+    const double *ub = cprop->ub;    
+    
+    /* number of binary, integer and unbounded variables in this constraint */
+    int nBin = 0, nInt = 0, nNeg = 0, nPUnb = 0;
+    for ( int j=0 ; (j<nz) ; ++j )
+    {
+        if (integer[idx[j]])
+        {
+            if (lb[idx[j]]>= -1e-10 && ub[idx[j]]<=1.0+1e-10)
+            {
+                nBin++;            
+            }
+            else
+            {
+                nInt++;
+                if (lb[idx[j]]<=-1e-10)
+                    nNeg++;
+
+                if (ub[idx[j]]>oo)
+                    nPUnb++;
+            }
+        }
+    } // all non zeros
+
+    enum ConstraintType consType = ConstraintOther;
+    if ( nBin == nz )
+        consType = ConstraintBV;
+    else
+        if ( nInt==nz && nNeg==0 && nPUnb==0 )
+            consType = ConstraintINNB;
+            
+    return consType;
+}
+
 double cut_violation( int cutNz, const int cutIdx[], const double cutCoef[], double cutRHS, const double x[] );
 
 int cprop_process_constraint_binary_variables( CProp *cprop, int irow );
@@ -312,10 +350,21 @@ void cprop_add_tightening_arcs_row(
 
 int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
 {
+
     int nz = cprop_nz( cprop, irow );
     const int *idx = cprop_idx( cprop, irow );
     const double *coef = cprop_coef( cprop, irow );
     double rhs = cprop_rhs( cprop, irow );
+
+    double *ub = cprop->ub;
+    double *lb = cprop->lb;
+
+#ifdef DEBUG    
+{
+    for ( int i=0 ; (i<nz) ; ++i )
+        assert( lb[idx[i]]>=-1e-10 && ub[idx[i]]<=1.0+1e-10 );
+}
+#endif
 
     int nimpl = 0;
 
@@ -324,8 +373,6 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
 
     double *pv = cprop->pv; 
     double *nv = cprop->nv;
-    double *ub = cprop->ub;
-    double *lb = cprop->lb;
     const char **cname = (const char**) cprop->cname;
     Vec_int *vcolimpl = cprop->vcolimpl;
     Vec_double *voldlb = cprop->voldlb;
@@ -778,8 +825,10 @@ void cprop_add_row( CProp *cprop, int nz, const int idx[], const double coef[], 
 
         if (integer[idx[j]])
         {
-            if (lb[idx[j]]>= -1e-10 && ub[idx[j]]<=1+1e-10)
-                nBin++;
+            if (lb[idx[j]]>= -1e-10 && ub[idx[j]]<=1.0+1e-10)
+            {
+                nBin++;            
+            }
             else
             {
                 nInt++;
@@ -790,7 +839,7 @@ void cprop_add_row( CProp *cprop, int nz, const int idx[], const double coef[], 
                     nPUnb++;
             }
         }
-    }
+    } // all non zeros
 
     enum ConstraintType consType = ConstraintOther;
     if ( nBin == nz )
@@ -1678,11 +1727,13 @@ PROCESS_CONSTRAINTS:
         Vec_int *vrnz = vec_int_create_cap( newRows );
         Vec_int *vrstart = vec_int_create_cap( newRows );
         Vec_double *vrrhs = vec_double_create_cap( newRows );
+        Vec_char *vrtype = vec_char_create_cap( newRows );
         Vec_double *vrcoef = vec_double_create_cap( newNZ );
         for ( int i=0 ; i<cprop_n_rows(cprop) ; ++i )
         {
             int nzRow = 0;
             double rhs = cprop_rhs( cprop, i );
+            enum ConstraintType rtype = vec_char_get( cprop->vrtype, i );
             char hasBinary = 0;
             for ( int j=0 ; (j<cprop_nz(cprop,i)) ; ++j )
             {
@@ -1705,6 +1756,7 @@ PROCESS_CONSTRAINTS:
                 if ( nzRow==1 && hasBinary )
                     continue;
                 vec_double_push_back( vrrhs, rhs );
+                vec_char_push_back( vrtype, rtype );
                 vec_int_push_back( vrstart, vec_int_size(vridx) );
                 vec_int_push_back( vrnz, nzRow );
                 for ( int j=0 ; (j<cprop_nz(cprop,i)) ; ++j )
@@ -1715,6 +1767,8 @@ PROCESS_CONSTRAINTS:
                     vec_int_push_back( vridx, cprop_idx( cprop, i )[j] );
                     vec_double_push_back( vrcoef, cprop_coef( cprop, i )[j] );
                 } // all coefficients
+                
+
             } // nz 
         } // all rows
         
@@ -1722,12 +1776,14 @@ PROCESS_CONSTRAINTS:
         vec_int_free( &cprop->vrnz );
         vec_int_free( &cprop->vrstart );
         vec_double_free( &cprop->vrrhs );
+        vec_char_free( &cprop->vrtype );
         vec_double_free( &cprop->vrcoef );
         
         cprop->vridx = vridx;
         cprop->vrnz = vrnz;
         cprop->vrstart = vrstart;
         cprop->vrrhs = vrrhs;
+        cprop->vrtype = vrtype;
         cprop->vrcoef = vrcoef;
         
         /* updating rows of each column */
@@ -1977,7 +2033,7 @@ void cprop_generate_cuts_impl( CProp *cprop )
     char *visited = iv;
 
 #ifdef DEBUG
-        for ( int ii=0 ; (ii<maxn) ; ++ii )
+        for ( int ii=0 ; (ii<sizeImplG) ; ++ii )
             assert( !visited[ii] );
 #endif
  
@@ -2046,12 +2102,12 @@ VISIT_NODES:
         }
 
 #ifdef DEBUG
-        for ( int ii=0 ; (ii<maxn) ; ++ii )
+        for ( int ii=0 ; (ii<sizeImplG) ; ++ii )
             assert( !visited[ii] );
-        for ( int ii=0 ; (ii<maxn) ; ++ii )
+        for ( int ii=0 ; (ii<sizeImplG) ; ++ii )
             assert( !ivd[ii] );
-        for ( int ii=0 ; (ii<maxn) ; ++ii )
-            assert( inD[ii] = cprop_impl_graph_in_d(cprop, ii) );
+        for ( int ii=0 ; (ii<sizeImplG) ; ++ii )
+            assert( inD[ii] == cprop_impl_graph_in_d(cprop, ii) );
 #endif
 
         int cutIdx[2]     = { cprop_impl_graph_node_var( cprop, implierNode ), -1 };
