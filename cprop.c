@@ -1236,6 +1236,7 @@ void cprop_save_impl_graph( const CProp *cprop, const char *fName )
     fclose( f );
 }
 
+#ifdef SAVE_GRAPH    
 static char *lit_name( const CProp *cprop, int lit, char *str )
 {
     if (cprop_impl_graph_node_type(cprop,lit)==Infeasible)
@@ -1250,6 +1251,7 @@ static char *lit_name( const CProp *cprop, int lit, char *str )
     }
     return str;    
 }
+#endif
 
 
 void cprop_generate_cuts_inf( CProp *cprop, int s )
@@ -1282,6 +1284,7 @@ void cprop_generate_cuts_inf( CProp *cprop, int s )
         } 
     }
     
+#ifdef SAVE_GRAPH    
     /* saving the min cut graph */
     {
         FILE *f = fopen("minc.dot","w");
@@ -1295,6 +1298,7 @@ void cprop_generate_cuts_inf( CProp *cprop, int s )
         fclose(f);
     
     }
+#endif
     
     /* solving the min cut to  */
     {
@@ -1626,8 +1630,10 @@ char cprop_impl_graph_layer( const CProp *cprop, int nDest, int dest[],
                              int *nSource, int source[], char alreadyIn[]  )
 {
     *nSource = 0;
-
+#ifdef SAVE_GRAPHS
     cprop_save_impl_graph( cprop, "impll.dot" );
+#endif
+    
 
 #ifdef DEBUG
     for ( int i=0 ; (i<cprop->cols*2+1) ; ++i )
