@@ -291,6 +291,8 @@ TRY_TO_CUT:
             {
                 totalCutsPC += newCuts-nCuts;
                 int status = lp_optimize_as_continuous( mip );
+                lp_write_lp( mip, "probc.lp");
+                
                 assert( status == LP_OPTIMAL );
                 if ( status == LP_OPTIMAL )
                 {
@@ -303,6 +305,7 @@ TRY_TO_CUT:
                 }
             }
         }
+        
 
         secsPC = ( (double) clock()-startpc ) / ((double)CLOCKS_PER_SEC);
     }

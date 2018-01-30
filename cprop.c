@@ -7,6 +7,7 @@
 #include "memory.h"
 #include "macros.h"
 #include "containers.h" 
+#include "mincut.h" 
 
 
 // large values, but not too large so that their summation produces an overflow
@@ -109,6 +110,9 @@ struct _CProp
 
     // for each variable: 0 if not probed, contains 2 if probed =0  4 if probed =1
     char *probe;
+    
+    // -1 if outside probe method, or else the literal which is being probed
+    int probing;
 
     char verbose;
 
@@ -152,7 +156,10 @@ enum ConstraintType get_constraint_type( const CProp *cprop, int nz, const int i
     return consType;
 }
 
-double cut_violation( int cutNz, const int cutIdx[], const double cutCoef[], double cutRHS, const double x[] );
+/* generate cut from nogood, returns violation */
+static double cut_no_good( const CProp *cprop, int nLiterals, int *literals, int idx[], double coef[], double *rhs );
+
+static double cut_violation( int cutNz, const int cutIdx[], const double cutCoef[], double cutRHS, const double x[] );
 
 int cprop_process_constraint_binary_variables( CProp *cprop, int irow );
 
@@ -180,7 +187,8 @@ char *cprop_constraint_descr_variable_bounds( const CProp *cprop, int irow, char
 /* tries to generate cuts considering the current implication graph */
 void cprop_generate_cuts_impl( CProp *cprop );
 
-void cprop_generate_cuts_inf( CProp *cprop );
+// s is the source node in the implication graph, i.e. 
+void cprop_generate_cuts_inf( CProp *cprop, int s );
 
 char cprop_impl_graph_has_arc( const CProp *cprop, int dest, int source );
 
@@ -323,6 +331,8 @@ CProp *cprop_create( int cols, const char integer[], const double lb[], const do
     cprop->cpcuts = cpc_create( 4096 );
 
     ALLOCATE_VECTOR_INI( cprop->probe, char, cprop->cols );
+    
+    cprop->probing = -1;
 
     return cprop;
 }
@@ -779,7 +789,7 @@ RETURN_INFEASIBLE:
     cprop->nimpl = vec_int_size( vcolimpl ) - implBoundsStart - 1;
     vec_int_push_back( vnimpl, vec_int_size( vcolimpl ) - implBoundsStart );
     vec_int_push_back( cprop->nNewArcsIG, vec_IntPair_size(cprop->lastArcsIG)-nArcsIGStart );
-    cprop_generate_cuts_inf( cprop );
+   
 
     /* analyzing infeasibility to generate cuts */
 
@@ -1226,12 +1236,110 @@ void cprop_save_impl_graph( const CProp *cprop, const char *fName )
     fclose( f );
 }
 
+static char *lit_name( const CProp *cprop, int lit, char *str )
+{
+    if (cprop_impl_graph_node_type(cprop,lit)==Infeasible)
+    {
+        strcpy(str, "Infeasible");
+    }
+    else
+    {
+        int var = lit >= cprop->cols ? lit-cprop->cols : lit;
+        int val = lit >= cprop->cols ? 1 : 0;
+        sprintf( str, "%sa%d", cprop->cname[var], val );        
+    }
+    return str;    
+}
 
-void cprop_generate_cuts_inf( CProp *cprop )
+
+void cprop_generate_cuts_inf( CProp *cprop, int s )
 {
     cprop_save_impl_graph( cprop, "impl.dot");
-    ISet **G = cprop->implGIn;
-
+  //  ISet **G = cprop->implGIn;
+    
+    /* searching for min cut, creating flow graph */
+    Vec_int *tail = vec_int_create_cap( cprop->cols );
+    Vec_int *head = vec_int_create_cap( cprop->cols );
+    Vec_int *cap = vec_int_create_cap( cprop->cols );
+    const double *x = cprop->x;
+    for ( int i=0 ; i<cprop->cols*2 ; i++ )
+    {
+        int var = cprop_impl_graph_node_var( cprop, i );
+        char complement = i >= cprop->cols && i < cprop->cols*2 ? True : False;
+        int vcap = ((double) x[var]*1000.0)/((double)cprop_impl_graph_out_d(cprop,i)) ;
+        if (!complement)
+            vcap = 1000 - vcap;
+        vcap += 1;
+        if (i==s)
+            vcap += 99999;
+            
+        for ( int k=0 ; (k<cprop_impl_graph_out_d(cprop,i)) ; ++k )
+        {
+            int j = cprop_impl_graph_out_neigh(cprop,i,k);
+            vec_int_push_back( tail, i );
+            vec_int_push_back( head, j );
+            vec_int_push_back( cap, vcap );
+        } 
+    }
+    
+    /* saving the min cut graph */
+    {
+        FILE *f = fopen("minc.dot","w");
+        assert( f );
+        char namel1[256]; char namel2[256]; 
+        fprintf( f, "digraph MinCutGraph {\n" );
+        fprintf( f, "   overlap=false;\n" );
+        for ( int i=0 ; (i<vec_int_size(tail)) ; ++i )
+            fprintf( f, "   %s -> %s [label=\"%d\"];\n", lit_name(cprop, vec_int_get(tail,i), namel1), lit_name(cprop, vec_int_get(head,i), namel2), vec_int_get(cap,i) );
+        fprintf( f, "}\n" );
+        fclose(f);
+    
+    }
+    
+    /* solving the min cut to  */
+    {
+        int *lit, *idx;
+        ALLOCATE_VECTOR( lit, int, cprop->cols*2 );
+        idx = lit + cprop->cols;
+        double *coef;
+        ALLOCATE_VECTOR( coef, double, cprop->cols );
+        int nLit = 0;
+        char *iv; ALLOCATE_VECTOR_INI( iv, char, (cprop->cols*2+1) );
+        
+        assert( cprop->probing != -1 );
+        MinCut *minc = minc_create( vec_int_size(tail), vec_int_ptr(tail), vec_int_ptr(head), vec_int_ptr(cap), cprop->probing, cprop->cols*2 );
+        minc_optimize(minc);
+        //printf("min cut has flow %d\n", flow );
+        for ( int i=0 ; (i<minc_n_cut(minc)) ; ++i )
+        {
+            int t = minc_cut_arc_source( minc, i );
+            if (!iv[t])
+            {
+                lit[nLit++] = t;            
+                iv[t] = True;            
+            }
+        }
+        
+        free( iv );
+        
+        if (nLit)
+        {
+            double rhs = 0.0;
+            double viol = cut_no_good( cprop, nLit, lit, idx, coef, &rhs );
+            if (viol>1e-4)
+            {
+                CPCuts *cpCuts = cprop->cpcuts;
+                cpc_add_cut( cpCuts, nLit, idx, coef, rhs );
+            }
+            //printf("viol:%g\n", viol );
+        }
+        
+        free( lit );
+        free( coef );
+    }
+    
+    
+/*
     int *idx = cprop->idx;
     double *coef = cprop->coef;
     int nodeInf = cprop_impl_graph_node_id( cprop, Infeasible, 0 );
@@ -1261,9 +1369,17 @@ void cprop_generate_cuts_inf( CProp *cprop )
         c = cprop_impl_graph_layer( cprop, nNodes, lidx, &nLayer, idx, iv );
         if (!c)
             break;        
+            
         
         nNodes = nLayer;
         
+        if (cprop->verbose)
+        {
+            printf("layer with %d elements: ", nLayer );
+            for ( int il=0 ; (il<nLayer) ; ++il )
+                printf("%d ", lidx[il] );
+            printf("\n"); fflush( stdout ); fflush( stderr );
+        }
         
         // storing lidx
         memcpy( lidx, idx, sizeof(int)*nLayer );
@@ -1318,7 +1434,7 @@ void cprop_generate_cuts_inf( CProp *cprop )
             
     } // while layer processed
     
-    free( iv );
+    free( iv );*/
 }
 
 
@@ -1592,6 +1708,7 @@ EVALUATE_CANDIDATES:
     {
         int c = iset_element( cand, i );
         int nr = 0;
+        
         // counting other canditate which could be removed if this candidate entered the set
         for ( int ioc=0 ; (ioc<iset_n_elements(cand)) ; ++ioc )
         {
@@ -2005,7 +2122,7 @@ void cprop_generate_cuts_impl( CProp *cprop )
     chDegree = toVisit  + sizeImplG;
 
     // checking variables that appear in the
-    // implication graph as source of implications
+    // implication graph as source of at least one implication
     for ( int i=0 ; i<sizeImplG ; ++i )
     {
         int d = cprop_impl_graph_in_d( cprop, i );
@@ -2119,7 +2236,6 @@ VISIT_NODES:
             int cutNz;
 
             int implNode = implications[ii];
-            cutIdx[1] = cprop_impl_graph_node_var( cprop, implNode );
 
             /* what is forbid is the inverse of the implication */
             switch (cprop_impl_graph_node_type(cprop,implNode))
@@ -2131,12 +2247,14 @@ VISIT_NODES:
                 }
                 case EOne:
                 {
+                    cutIdx[1] = cprop_impl_graph_node_var( cprop, implNode );
                     cutNz = 2;
                     cutCoef[1] = -1.0;
                     break;
                 }
                 case EZero:
                 {
+                    cutIdx[1] = cprop_impl_graph_node_var( cprop, implNode );
                     cutNz = 2;
                     cutCoef[1] = 1.0;
                     break;
@@ -2243,8 +2361,11 @@ int cprop_probe( CProp *cprop, int var, int value )
     double oldlb = cprop_get_lb( cprop, var );
     double oldub = cprop_get_ub( cprop, var );
     assert( oldub - oldlb > 0.00001 );
+    
+    cprop->probing = var + ( value>0.5 ? cprop->cols : 0 );
 
     printf("Probing %s=%d ... ", cprop->cname[var], value );
+    fflush( stdout );
 
     if ( value == 0 )
         cprop->probe[var] |= 2;
@@ -2253,6 +2374,9 @@ int cprop_probe( CProp *cprop, int var, int value )
 
     CPCuts *cpCuts = cprop->cpcuts;
     int nCuts = cpc_n_cuts( cpCuts );
+    
+    //if (var == 44853)
+    //    cprop->verbose = True;
 
     int res = cprop_update_bound( cprop, var, value, value );
 
@@ -2260,17 +2384,47 @@ int cprop_probe( CProp *cprop, int var, int value )
     {
         case -1 :
         {
-            printf("infeasible, ");
+            printf("infeasible, "); fflush( stdout );
+            
+            cprop_generate_cuts_impl( cprop );
+            
+            cprop_generate_cuts_inf( cprop, cprop->probing );            
+            
+            // trying cut forbiding variable value
+            int cutIdx[] = { var };
+            double cutCoef[1];
+            double rhs;
+            switch (value)
+            {
+                case 0:
+                {
+                    cutCoef[0] = -1.0;
+                    rhs = -1.0;
+                    break;
+                }   
+                case 1:
+                {
+                    cutCoef[0] = 1.0;
+                    rhs = 0.0;
+                    break;
+                }
+            }
+            if (cut_violation( 1, cutIdx, cutCoef, rhs, cprop->x)>1e-4)
+            {
+                CPCuts *cpCuts = cprop->cpcuts;
+                cpc_add_cut( cpCuts, 1, cutIdx, cutCoef, rhs );
+            }
+            
             break;
         }
         case 0 :
         {
-            printf("no implications.\n");
+            printf("no implications.\n"); fflush( stdout );
             break;
         }
         default :
         {
-            printf("%d implications, ", res);
+            printf("%d implications, ", res); fflush( stdout );
             cprop_generate_cuts_impl( cprop );            
             break;
         }
@@ -2295,6 +2449,8 @@ int cprop_probe( CProp *cprop, int var, int value )
     } // implications have been done
 
     cprop_undo( cprop );
+    
+    cprop->probing = -1;
 
     return cpc_n_cuts( cpCuts ) - nCuts;
 }
@@ -2308,3 +2464,42 @@ double cut_violation( int cutNz, const int cutIdx[], const double cutCoef[], dou
     return MAX( 0.0, lhs-cutRHS );
 }
 
+static double cut_no_good( const CProp *cprop, int nLiterals, int *literals, int idx[], double coef[], double *rhs )
+{
+    double lhs = 0.0;
+    *rhs = 0.0;
+    
+    for ( int i=0 ; (i<nLiterals) ; ++i )
+    {
+        int lit = literals[i];
+        int var = cprop_impl_graph_node_var( cprop, lit );
+        idx[i] = var;
+        
+        switch (cprop_impl_graph_node_type(cprop,lit))
+        {
+            case EZero:
+            {
+                coef[i] = -1.0;
+                break;
+            }        
+            case EOne:
+            {
+                coef[i] = 1.0;
+                *rhs += 1.0;
+                break;
+            }        
+            case Infeasible:
+            {
+                fprintf( stderr, "should not have appeared here!.\n" );
+                abort();
+                break;
+            }        
+        }
+        lhs += coef[i]*cprop->x[var];
+        
+    }
+    
+    *rhs -= 1.0;
+    
+    return MAX( 0.0, lhs - (*rhs) );    
+}
