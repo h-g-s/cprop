@@ -82,24 +82,24 @@ int main( int argc, char **argv )
     EXEC_AND_STORE_TIME( lp_read( mip, argv[1] ), secread );
     
     /* debug */
-    {
-        int ridx = lp_row_index( mip, "R4341" );
-        assert( ridx != -1 );
-        int *idx; ALLOCATE_VECTOR( idx, int, lp_cols(mip) );
-        double *coef; ALLOCATE_VECTOR( coef, double, lp_cols(mip) );
-        int rnz = lp_row( mip, ridx, idx, coef );
-        for ( int i=0 ; (i<rnz) ; ++i )
-        {
-            int cidx = idx[i];
-            char cname[256]; lp_col_name( mip, cidx, cname );
-            double clb = lp_col_lb( mip, cidx );
-            double cub = lp_col_ub( mip, cidx );
-            char isint = lp_is_integer( mip, cidx );
-            printf("%s [%g..%g] int %d\n", cname, clb, cub, isint );
-        }
-        
-        free( idx ); free( coef );
-    }
+//    {
+//        int ridx = lp_row_index( mip, "R4341" );
+//        assert( ridx != -1 );
+//        int *idx; ALLOCATE_VECTOR( idx, int, lp_cols(mip) );
+//        double *coef; ALLOCATE_VECTOR( coef, double, lp_cols(mip) );
+//        int rnz = lp_row( mip, ridx, idx, coef );
+//        for ( int i=0 ; (i<rnz) ; ++i )
+//        {
+//            int cidx = idx[i];
+//            char cname[256]; lp_col_name( mip, cidx, cname );
+//            double clb = lp_col_lb( mip, cidx );
+//            double cub = lp_col_ub( mip, cidx );
+//            char isint = lp_is_integer( mip, cidx );
+//            printf("%s [%g..%g] int %d\n", cname, clb, cub, isint );
+//        }
+//        
+//        free( idx ); free( coef );
+//    }
 
     cols = lp_cols( mip );
     rows = lp_rows( mip );
