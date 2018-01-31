@@ -54,6 +54,8 @@ char diveVar[MAX_DIVE_DEPT][256];
 int diveVal[MAX_DIVE_DEPT];
 int nVarsToDive = 0;
 
+char verbose = 1;
+
 void parseParameters( int argc, const char **argv );
 
 int main( int argc, char **argv )
@@ -78,6 +80,26 @@ int main( int argc, char **argv )
     mip = lp_create();
 
     EXEC_AND_STORE_TIME( lp_read( mip, argv[1] ), secread );
+    
+    /* debug */
+    {
+        int ridx = lp_row_index( mip, "R4341" );
+        assert( ridx != -1 );
+        int *idx; ALLOCATE_VECTOR( idx, int, lp_cols(mip) );
+        double *coef; ALLOCATE_VECTOR( coef, double, lp_cols(mip) );
+        int rnz = lp_row( mip, ridx, idx, coef );
+        for ( int i=0 ; (i<rnz) ; ++i )
+        {
+            int cidx = idx[i];
+            char cname[256]; lp_col_name( mip, cidx, cname );
+            double clb = lp_col_lb( mip, cidx );
+            double cub = lp_col_ub( mip, cidx );
+            char isint = lp_is_integer( mip, cidx );
+            printf("%s [%g..%g] int %d\n", cname, clb, cub, isint );
+        }
+        
+        free( idx ); free( coef );
+    }
 
     cols = lp_cols( mip );
     rows = lp_rows( mip );
@@ -105,7 +127,7 @@ int main( int argc, char **argv )
         printf("Initial LP relaxation solved in %.4f seconds, obj is %g\n", seclpopt, lp_obj_value(mip) );
     } 
         
-    EXEC_AND_STORE_TIME( cprop = cprop_create_from_mip( mip, 0 ), cpsecs );    
+    EXEC_AND_STORE_TIME( cprop = cprop_create_from_mip( mip, verbose ), cpsecs );    
     
     feasibleCPROP = cprop_feasible( cprop );
 
@@ -506,6 +528,14 @@ void parseParameters( int argc, const char **argv )
             if (strcasestr(param, "probeAndCut"))
             {
                 probeAndCut = True;
+                continue;
+            }
+            
+            if (strcasestr(param, "verbose"))
+            {
+                assert( i+1<argc );
+                verbose = atoi( argv[i+1] );
+                ++i;                
                 continue;
             }
                 

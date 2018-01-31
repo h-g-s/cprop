@@ -12,7 +12,8 @@
 
 // large values, but not too large so that their summation produces an overflow
 const double oo  = 1e23;
-#define VEPS  1e-10
+#define VEPS      1e-10
+#define VEPS_INF   1e-4
 #define FIXED( lb, ub ) ( ub-lb <= VEPS )
 
 
@@ -372,7 +373,10 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
 #ifdef DEBUG    
 {
     for ( int i=0 ; (i<nz) ; ++i )
+    {
         assert( lb[idx[i]]>=-1e-10 && ub[idx[i]]<=1.0+1e-10 );
+        assert( cprop->integer[idx[i]] );
+    }
 }
 #endif
 
@@ -438,7 +442,7 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
             ++nFixed;
 
     /* checking if constraint if unfeasible */
-    if ( minP-maxN >= rhs+VEPS )
+    if ( minP-maxN >= rhs+VEPS_INF )
     {
         cprop_report_infeasible_constraint( cprop, irow, minP-maxN );
 
@@ -456,7 +460,7 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
         // N+ set
         if ( coef[j] > VEPS )
         {
-            if ( uij <= -VEPS )
+            if ( uij <= -VEPS_INF )
             {
                 char msg[1024], strConstr[512], strFixed[512] = "";
                 cprop_constraint_descr( cprop, irow, strConstr );
@@ -481,14 +485,14 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
             }
             else
             {
-                if ( coef[j] >= uij+VEPS )
+                if ( coef[j] >= uij+VEPS_INF )
                 {
                     vec_int_push_back( vcolimpl, idx[j] );
                     vec_double_push_back( voldlb, lb[idx[j]] );
                     vec_double_push_back( voldub, ub[idx[j]] );
                     ub[idx[j]] = 0.0;
                     if (cprop->verbose)
-                        printf(" impl -> %s=0\n", cname[idx[j]] );
+                        printf(" constr %s impl -> %s=0\n", cprop_row_name( cprop, irow ), cname[idx[j]] );
 
                     cprop_add_tightening_arcs_row( cprop, nz, idx, coef, nFixedTightner, fixedTightner, EZero, idx[j] );
 
@@ -501,7 +505,7 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
             // set N-
             if ( coef[j] <= -VEPS )
             {
-                if ( coef[j] >= uij+VEPS )
+                if ( coef[j] >= uij+VEPS_INF )
                 {
                     cprop_report_infeasible_constraint( cprop, irow, 0.0 );
                     
@@ -511,14 +515,14 @@ int cprop_process_constraint_binary_variables( CProp *cprop, int irow )
                 }
                 else
                 {
-                    if ( uij <= -VEPS )
+                    if ( uij <= -VEPS_INF )
                     {
                         vec_int_push_back( vcolimpl, idx[j] );
                         vec_double_push_back( voldlb, lb[idx[j]] );
                         vec_double_push_back( voldub, ub[idx[j]] );
                         lb[idx[j]] = 1.0;
                         if (cprop->verbose)
-                            printf("  impl %s=1\n", cname ? cname[idx[j]] : "" );
+                            printf("  constr %s impl %s=1\n", cprop_row_name( cprop, irow ), cname ? cname[idx[j]] : "" );
 
                         cprop_add_tightening_arcs_row( cprop, nz, idx, coef, nFixedTightner, fixedTightner, EOne, idx[j] );
 
@@ -606,7 +610,7 @@ int cprop_process_constraint( CProp *cprop, int irow )
         for ( int j=0 ; j<nz ; ++j )
             lhs += ub[idx[j]]*coef[j];
 
-        if ( lhs >= rhs+VEPS )
+        if ( lhs >= rhs+VEPS_INF )
         {
             cprop_report_infeasible_constraint( cprop, irow, lhs );
             return -1;
@@ -645,8 +649,8 @@ int cprop_add_constraint( CProp *cprop, int nz, const int idx[], const double co
         sprintf( rName, "%s%s", rname, toupper(sense) == 'E' ? "p1" : "" );
         cprop_add_row( cprop, nz, idx, coef, rhs, mult, rName );
         res1 = cprop_process_constraint( cprop, cprop_n_rows( cprop )-1 );
-        if (cprop->verbose)
-            printf("\n");
+//        if (cprop->verbose)
+//            printf("\n");
 
     }
     if (toupper(sense)=='E')
@@ -655,8 +659,8 @@ int cprop_add_constraint( CProp *cprop, int nz, const int idx[], const double co
         sprintf( rName, "%s%s", rname, toupper(sense) == 'E' ? "p2" : "" );
         cprop_add_row( cprop, nz, idx, coef, rhs, 1.0, rName );
         res2 = cprop_process_constraint( cprop, cprop_n_rows( cprop )-1 );
-        if (cprop->verbose)
-            printf("\n");
+//        if (cprop->verbose)
+//            printf("\n");
     }
 
     cprop->nimpl = vec_int_size( vcolimpl ) - implBoundsStart;
@@ -1268,9 +1272,9 @@ void cprop_generate_cuts_inf( CProp *cprop, int s )
     {
         int var = cprop_impl_graph_node_var( cprop, i );
         char complement = i >= cprop->cols && i < cprop->cols*2 ? True : False;
-        int vcap = ((double) x[var]*1000.0)/((double)cprop_impl_graph_out_d(cprop,i)) ;
+        int vcap = ((double) x[var]*1000.0)/((double)cprop_impl_graph_out_d(cprop,i)+1.0) ;
         if (!complement)
-            vcap = 1000 - vcap;
+            vcap = 1010 - vcap;
         vcap += 1;
         if (i==s)
             vcap += 99999;
@@ -1323,6 +1327,10 @@ void cprop_generate_cuts_inf( CProp *cprop, int s )
                 iv[t] = True;            
             }
         }
+        minc_free(&minc);
+        vec_int_free( &tail );
+        vec_int_free( &head );
+        vec_int_free( &cap );
         
         free( iv );
         
@@ -2116,7 +2124,7 @@ void cprop_generate_cuts_impl( CProp *cprop )
     ALLOCATE_VECTOR_INI( iv, char, sizeImplG*2 );
     ivd = iv + sizeImplG;
 
-    int nImpliers = 0, nImplications = 0, nVisNodes = 0, nNewNodes, nToVisit, nChDegree;
+    int nImpliers = 0, nImplications = 0, nVisNodes = 0, nNewNodes = 0, nToVisit, nChDegree;
     int *impliers, *implications, *inD, *visnode, *newNodes, *toVisit, *chDegree;
 
     ALLOCATE_VECTOR( impliers, int, sizeImplG*7 );
